@@ -1,0 +1,6 @@
+; $Id$
+name = Atlantic Synergies Custom Functions
+description = Custom modules written for the Atlantic Synergies Drupal site.
+core = 6.x
+dependencies[] = content
+package = Atlantic Synergies Custom Functions

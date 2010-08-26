@@ -1,5 +1,3 @@
-# drupal-modules
+# atlanticsynergies_custom_functions
 
-Drupal modules built or customized by the Electronic Text Centre, UNB Libraries.
-
-## More details go here.
+Module containing custom functions for the [Atlantic Synergies Regional Node](http://atlantic.synergiescanada.org) site.
