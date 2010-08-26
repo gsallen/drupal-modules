@@ -1,4 +1,4 @@
 <?php
 	$thisModulePath = drupal_get_path('module', 'mifo_custom_functions');
-	include_once($thisModulePath.'/includes/functions.inc');
+	include_once($thisModulePath.'/includes/functions.inc.php');
 ?>
