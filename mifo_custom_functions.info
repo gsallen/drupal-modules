@@ -1,0 +1,6 @@
+; $Id$
+name = MIFO Custom Functions
+description = Custom modules written for the forestoperations.org (MIFO) site
+core = 6.x
+dependencies[] = content
+package = MIFO Custom Functions

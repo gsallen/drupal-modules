@@ -1,5 +1,3 @@
-# drupal-modules
+# mifo_custom_functions
 
-Drupal modules built or customized by the Electronic Text Centre, UNB Libraries.
-
-## More details go here.
+Module containing custom functions for the [http://www.forestoperations.org](http://www.forestoperations.org) (MIFO) site.
