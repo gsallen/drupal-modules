@@ -1,0 +1,4 @@
+<?php
+	$mod_path = drupal_get_path('module', 'etc_custom_functions');
+	include_once("$mod_path/includes/functions.inc.php");
+?>

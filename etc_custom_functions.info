@@ -1,0 +1,6 @@
+; $Id$
+name = ETC Custom Functions
+description = Custom modules for the ETC Drupal site.
+core = 6.x
+dependencies[] = content
+package = ETC Custom Functions

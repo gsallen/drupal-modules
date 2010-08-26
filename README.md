@@ -1,5 +1,3 @@
-# drupal-modules
+# etc_custom_functions
 
-Drupal modules built or customized by the Electronic Text Centre, UNB Libraries.
-
-## More details go here.
+Module containing custom functions for the [ETC Drupal](http://vre.lib.unb.ca/etc/) site.
