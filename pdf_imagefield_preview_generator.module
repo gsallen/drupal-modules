@@ -1,0 +1,92 @@
+<?php
+
+function pdf_imagefield_preview_generator_nodeapi(&$node, $op, $a3 = NULL, $a4 = NULL) {
+
+	switch ($op) {
+		case 'presave':
+			if($node->type == 'issue') {
+				generatePdfImagePreviews($node);
+			}
+		break;
+	}
+
+}
+
+/*
+ * Functions Below to generate jpg previews of PDF nodes and store them in a CCK imagefield.
+ * This is a quick function and should really have menu selections to choose source
+ * and target fields.
+ * 
+ * A bit of this stolen from 'PDF to ImageField' module.
+ */
+
+
+/*
+ * Return source and target CCK fields.
+ * FOR NOW : Source and target CCK fields are Hardcoded here. Use is SOURCE=>TARGET
+ * In future, would be great to have selected through admin menu.
+ */
+function generateSourceTargetArray() {
+	$returnArray=array(
+		"field_restrictedissuepdf" => "field_issuecover",
+	);
+
+	return($returnArray);
+}
+
+/*
+ * Generate the jpg files and insert into node here.
+ */
+function generatePdfImagePreviews(&$node) {
+
+	$arrayOfPreviews=array();
+	$arrayOfPreviews=generateSourceTargetArray();
+
+	foreach ($arrayOfPreviews as $sourceField => $targetField) {
+
+		$sourcePdfFileId=$node->{$sourceField}[0]['fid'];
+		$sourcePdfFileObject=field_file_load($sourcePdfFileId);
+		$sourcePdfFilePath=$sourcePdfFileObject['filepath'];
+
+		$targetImageField=$targetField;
+
+		$convertedFilePath=generatePdfFirstPageImage($sourcePdfFilePath,str_replace('.pdf','.jpg',$sourcePdfFilePath));
+		if ($convertedFilePath == FALSE) {
+			watchdog('pdf to image: imageapi imagemagick', '!errors', array('!errors' => $errors_txt), WATCHDOG_ERROR);
+		} else {
+			// Do rest of processing here.
+			if (file_exists($convertedFilePath)) {
+				$imageToInsert = new stdClass();
+				$imageToInsert->filename = str_replace('.pdf','.jpg',$node->{$sourceField}[0]['filename']);
+				$imageToInsert->filepath = str_replace('.pdf','.jpg',$sourcePdfFilePath);
+				$imageToInsert->filemime = file_get_mimetype($imageToInsert->filepath);
+				$imageToInsert->filesize = filesize($imageToInsert->filepath);
+				$imageToInsert->status = 1;
+				$imageToInsert->timestamp = time();
+				$imageToInsert->uid = 1;
+				drupal_write_record('files', $imageToInsert);
+				file_set_status($imageToInsert, FILE_STATUS_PERMANENT);
+				$node->{$targetField}[0] = (array) $imageToInsert;
+			} // end if file_exists
+		} // end else convertedpath
+	} // end foreach arrayofpreviews 
+}
+
+/*
+ * Function to convert PDF into jpg thumbnail of first page only.
+ */
+function generatePdfFirstPageImage($source, $dest, $args = array(), $extra = array()) {
+
+	$d_arguments['quality'] = '-quality '. escapeshellarg(variable_get('imageapi_imagemagick_quality', 75));
+	$command = implode(' ', $extra) .' '. escapeshellarg($source.'[0]') .' '. implode(' ', $args) .' '. escapeshellarg($dest);
+	$returncommand=_imageapi_imagemagick_convert_exec($command, $output, $errors);
+
+	if (0 != 0) {
+		$errors_txt = '<pre>' . (is_array($errors) ? implode("\n", $errors) : $errors) . '</pre>';
+		watchdog('pdf to image: imageapi imagemagick', '!errors', array('!errors' => $errors_txt), WATCHDOG_ERROR);
+		return FALSE;
+	}
+	return ($dest);
+}
+
+?>

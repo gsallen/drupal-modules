@@ -1,0 +1,12 @@
+; $Id$
+name = PDF Imagefield Preview Generator
+description = Hacky module to generate previews from PDFs into an Imagefield. Processed fields are hard-coded into module, so if you need another preview generated, you must edit the generateSourceTargetArray() function. Originally ported and simplified from pdf_to_imagefield module but most of that code isn't present anymore.
+core = 6.x
+version = 6.x-1.00
+dependencies[] = filefield
+dependencies[] = imagefield
+dependencies[] = content
+dependencies[] = imageapi
+dependencies[] = imageapi_imagemagick
+dependencies[] = swfupload
+package = Freethought Today Custom Functions
