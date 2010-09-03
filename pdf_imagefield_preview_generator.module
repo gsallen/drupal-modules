@@ -64,7 +64,12 @@ function generatePdfImagePreviews(&$node) {
 				$imageToInsert->status = 1;
 				$imageToInsert->timestamp = time();
 				$imageToInsert->uid = 1;
+
 				drupal_write_record('files', $imageToInsert);
+				// Inform modules about the newly added file.
+				module_invoke_all('file_insert', $imageToInsert);
+				module_invoke_all('entity_insert', $imageToInsert, 'file');
+
 				file_set_status($imageToInsert, FILE_STATUS_PERMANENT);
 				$node->{$targetField}[0] = (array) $imageToInsert;
 			} // end if file_exists
