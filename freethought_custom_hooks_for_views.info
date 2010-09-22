@@ -1,0 +1,7 @@
+; $Id$
+name = Custom Hooks to Control View Arguments
+description = Custom hooks written to allow view arguments that have 'volume-1' instead of 1.
+core = 6.x
+version = 6.x-1.00
+dependencies[] = views
+package = Freethought Today Custom Functions
