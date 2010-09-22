@@ -1,16 +1,43 @@
 <?php
 
+/*
+ * Hook presave on issue nodes.
+ */
 function pdf_imagefield_preview_generator_nodeapi(&$node, $op, $a3 = NULL, $a4 = NULL) {
 
 	switch ($op) {
 		case 'presave':
 			if($node->type == 'issue') {
 				generatePdfImagePreviews($node);
+				// print_r($node);
+				// die();
 			}
 		break;
+		
+		case 'update':
+				if($node->type == 'issue') {
+				// print_r($node);
+				// die();
+			}
+		break;
+			
 	}
 
 }
+
+
+/*
+* Disable display of the field_issuecover field. This could lead to problems later, but will simplify the process for now.
+*/
+function pdf_imagefield_preview_generator_form_alter(&$form, $form_state, $form_id) {
+	if (isset($form['type']) && isset($form['#node'])) {
+		if ($form_id === 'issue_node_form') {
+			$form['field_issuecover']['#prefix'] = '<div style="display:none;">';
+			$form['field_issuecover']['#suffix'] = '</div>';
+		}
+	}
+}
+
 
 /*
  * Functions Below to generate jpg previews of PDF nodes and store them in a CCK imagefield.
@@ -28,16 +55,22 @@ function pdf_imagefield_preview_generator_nodeapi(&$node, $op, $a3 = NULL, $a4 =
  */
 function generateSourceTargetArray() {
 	$returnArray=array(
-		"field_restrictedissuepdf" => "field_issuecover",
+		"field_fullissuepdf" => "field_issuecover",
 	);
 
 	return($returnArray);
 }
 
+
 /*
  * Generate the jpg files and insert into node here.
  */
 function generatePdfImagePreviews(&$node) {
+
+	//print_r($node->field_fullissuepdf);
+	// print_r($node);
+	// die('');
+	// if ($node->field_fullissuepdf[0]['status']=='1') {
 
 	$arrayOfPreviews=array();
 	$arrayOfPreviews=generateSourceTargetArray();
@@ -48,22 +81,29 @@ function generatePdfImagePreviews(&$node) {
 		$sourcePdfFileObject=field_file_load($sourcePdfFileId);
 		$sourcePdfFilePath=$sourcePdfFileObject['filepath'];
 
+		// If it exists, Delete file from DB for this pdf.
+		file_delete(str_replace('.pdf','.jpg',$sourcePdfFilePath));
+		
 		$targetImageField=$targetField;
 
 		$convertedFilePath=generatePdfFirstPageImage($sourcePdfFilePath,str_replace('.pdf','.jpg',$sourcePdfFilePath));
+
 		if ($convertedFilePath == FALSE) {
 			watchdog('pdf to image: imageapi imagemagick', '!errors', array('!errors' => $errors_txt), WATCHDOG_ERROR);
 		} else {
-			// Do rest of processing here.
-			if (file_exists($convertedFilePath)) {
+			if ($node->field_issuecover[0]['filepath']!=$convertedFilePath) {
+
+				// New Image Insert Needed, Do rest of processing here.
 				$imageToInsert = new stdClass();
-				$imageToInsert->filename = str_replace('.pdf','.jpg',$node->{$sourceField}[0]['filename']);
-				$imageToInsert->filepath = str_replace('.pdf','.jpg',$sourcePdfFilePath);
+				// $imageToInsert->filename = str_replace('.pdf','.jpg',$sourcePdfFileObject['filename']);
+				$imageToInsert->filename = basename($convertedFilePath);
+				$imageToInsert->filepath = $convertedFilePath;
 				$imageToInsert->filemime = file_get_mimetype($imageToInsert->filepath);
 				$imageToInsert->filesize = filesize($imageToInsert->filepath);
 				$imageToInsert->status = 1;
 				$imageToInsert->timestamp = time();
 				$imageToInsert->uid = 1;
+				$imageToInsert->list=1;
 
 				drupal_write_record('files', $imageToInsert);
 				// Inform modules about the newly added file.
@@ -72,10 +112,12 @@ function generatePdfImagePreviews(&$node) {
 
 				file_set_status($imageToInsert, FILE_STATUS_PERMANENT);
 				$node->{$targetField}[0] = (array) $imageToInsert;
-			} // end if file_exists
+			} // end if filepath is already in DB that matches new jpg.
 		} // end else convertedpath
-	} // end foreach arrayofpreviews 
-}
+	} // end foreach arrayofpreviews
+} 
+
+
 
 /*
  * Function to convert PDF into jpg thumbnail of first page only.
