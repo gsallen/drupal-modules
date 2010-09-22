@@ -1,0 +1,8 @@
+; $Id$
+name = PDF to Body Field Text Import
+description = Populate body field of node from PDFs. Requires pdftotext binary, location hardcoded into the module.
+core = 6.x
+version = 6.x-1.00
+dependencies[] = filefield
+dependencies[] = swfupload
+package = Freethought Today Custom Functions

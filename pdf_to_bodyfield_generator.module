@@ -1,0 +1,37 @@
+<?php
+
+/*
+ * Hook presave on issue nodes to load body with PDF 
+ */
+function pdf_to_bodyfield_generator_nodeapi(&$node, $op, $a3 = NULL, $a4 = NULL) {
+
+	switch ($op) {
+		case 'presave':
+			if($node->type == 'issue') {
+				$newBodyText=generateBodyTextFromPdf($node);
+				$node->field_ocrcontents[0]['value']=t($newBodyText);
+			}
+		break;
+	}
+
+}
+
+
+function generateBodyTextFromPdf($node) {
+	$pdfToTextBinPath='/usr/bin/pdftotext';
+
+	$sourcePdfFileId=$node->field_fullissuepdf[0]['fid'];
+	$sourcePdfFileObject=field_file_load($sourcePdfFileId);
+	$sourcePdfFilePath=$sourcePdfFileObject['filepath'];
+
+	$pdfToTextCommand="$pdfToTextBinPath $sourcePdfFilePath -";
+	exec($pdfToTextCommand, $pdfTextOutput);
+
+	$pdfTextOutput=implode("\n",$pdfTextOutput);
+
+	$pdfTextOutput = preg_replace("/[^[:alnum:][:punct:][\s\t]/","",$pdfTextOutput);
+
+	return($pdfTextOutput);
+}
+
+?>
