@@ -1,0 +1,18 @@
+<?php
+
+/*
+ * Fill form title automatically when loading form edit.
+ */
+function title_constructor_from_details_form_alter(&$form, $form_state, $form_id) {
+	if (isset($form['type']) && isset($form['#node'])) {
+		if ($form_id === 'issue_node_form') {
+			// dsm($form['#node']->field_issuevolume);
+			// print_r($form);
+			$titletexttouse="Volume ".$form['#node']->field_issuevolume[0]['value'].", Issue ".$form['#node']->field_issuenumber[0]['value']." (".$form['#node']->field_issuemonthvalue[0]['value'].")";
+			$form['title']['#default_value']=$titletexttouse;
+		}
+	}
+}
+
+
+?>

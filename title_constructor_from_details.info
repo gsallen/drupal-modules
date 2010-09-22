@@ -1,0 +1,8 @@
+; $Id$
+name = Title Constructor From Issue Details
+description = Disables title field and assembles it based on the metrics of the issue.
+core = 6.x
+version = 6.x-1.00
+dependencies[] = filefield
+dependencies[] = content
+package = Freethought Today Custom Functions
