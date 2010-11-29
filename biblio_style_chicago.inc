@@ -289,6 +289,67 @@ function biblio_style_chicago($node, $base = 'biblio', $inline = false) {
       if (!preg_match("/\. *$/", $output)) $output .= ".";
 
       break;
+      
+    case 108: // Thesis
+      // @todo factor this out of cases
+      if (! empty($authors)) {
+        $output .= '<span class="biblio-authors">';
+        $output .= $authors;
+        if (! preg_match("/\. *$/", $authors)) {
+          $output .= "."; 
+        }
+        $output .= '</span>';
+      }
+      if (! empty($node->title)) {
+        $url = biblio_get_title_url_info($node, $base, $inline);
+        
+        if (! empty($authors)) {
+          $output .= " ";
+        }
+
+        // tag & punctuate title; add trailing space.
+        $output .= '<span class="biblio-title-chicago">';
+        $output .= '"' . l($node->title, $url['link'], $url['options']);
+        if (! preg_match("/[?!.]$/", $node->title)) { 
+          $output .= ".";
+        }
+        $output .= '"';
+        $output .= "</span> ";          
+      } // end if (title not empty)
+      
+      // degree granted, institution, and year:
+      // comma-delimit as many of these as are present;
+      // follow with a period.
+      $output_fields = array();
+      
+      foreach (array($node->biblio_volume, $node->biblio_publisher, $node->biblio_year) as $field) {
+        if (! empty($field)) {
+          $output_fields[] = $field;
+        }
+      }
+      $output .= implode(', ', $output_fields);
+    
+      // Add trailing punctuation, if needed
+      if (! preg_match("/[. *]$/", $output)) { 
+        $output .= ".";
+      }
+      
+      // DOI
+      if (! empty($node->biblio_doi)) {
+        // @todo: check if it's valid?
+        // @todo: check_plain or similar already called?
+        $output .= ' doi: ' . check_plain($node->biblio_doi) . '.';
+      }
+      
+      // URL 
+      if (! empty($node->biblio_url)) {
+        $output .= l($node->biblio_url, $node->biblio_url, array('external' => TRUE));
+      }
+      
+      if (! preg_match("/[. *]$/", $output)) { 
+        $output .= ".";
+      }      
+      break;
 
     default : // all other types
       //TODO
@@ -379,7 +440,7 @@ function biblio_style_chicago($node, $base = 'biblio', $inline = false) {
 
         $output .= " Vol. " . $node->biblio_volume;
       }
-
+      
       if (!empty($node->biblio_alternate_title) OR !empty($node->biblio_tertiary_title)) // if there's either a full or an abbreviated series title
       {
         if (!preg_match("/[?!.][ \"<i>]*$/", $output)) $output .= ".";
@@ -404,9 +465,8 @@ function biblio_style_chicago($node, $base = 'biblio', $inline = false) {
       }
 
       if (!empty($node->thesis))      // thesis
-      {
+      {  
         if (!preg_match("/[?!.][ \"" . $markupPatternsArray["italic-suffix"] . "]*$/", $output))  $output .= ".";
-
         $output .= " " . $node->thesis;
         $output .= ", " . $node->biblio_publisher;
       }
