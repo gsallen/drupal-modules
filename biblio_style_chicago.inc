@@ -62,6 +62,9 @@ function biblio_style_chicago($node, $base = 'biblio', $inline = false) {
   //if (empty($authors)) $authors = '[' . t('Anonymous') . ']';  // use anonymous if we still have nothing.
   //$output .= '<span class="biblio-authors">' . $authors . "</span>.&nbsp; \n";
   
+  // @todo: punctuate output fields, push them onto a list; implode the list, instead of 
+  // constantly checking for punctuation & spacing.
+  
   // Citation key
   if (!empty($node->biblio_citekey) && variable_get('biblio_display_citation_key', 0)) {
     $output .= '[' . check_plain($node->biblio_citekey) . '] ';
@@ -103,10 +106,6 @@ function biblio_style_chicago($node, $base = 'biblio', $inline = false) {
   }
 
   switch ($node->biblio_type) {
-    
-    // case 100:
-      // Book, whole
-      // break;
       
     case 102: //Journal Article
     case 105: //Newspaper Article
@@ -294,11 +293,10 @@ function biblio_style_chicago($node, $base = 'biblio', $inline = false) {
       
     case 108: 
       // Thesis: 
-      // author(s), title, degree type, institution, pub year, doi, url
+      // author(s), primary title (already output),
+      // degree type, institution, pub year, doi, url
       
-      // degree granted, institution, and year:
-      // comma-delimit as many of these as are present;
-      // follow with a period.
+      // degree granted, institution, and year as comma-delimited list, where given 
       $output_fields = array();
       
       foreach (array($node->biblio_volume, $node->biblio_publisher, $node->biblio_year) as $field) {
@@ -307,17 +305,17 @@ function biblio_style_chicago($node, $base = 'biblio', $inline = false) {
         }
       }
       $output .= implode(', ', $output_fields);
-    
-      // Add trailing punctuation, if needed
-      if (! preg_match("/[. *]$/", $output)) { 
-        $output .= ".";
+
+      if (!  _biblio_style_chicago_field_is_punctuated($output)) { 
+        $output .= '.';
       }
+      $output .= ' ';
       
       // DOI
       if (! empty($node->biblio_doi)) {
         // @todo: check if it's valid?
         // @todo: check_plain or similar already called?
-        $output .= ' doi: ' . check_plain($node->biblio_doi) . '.';
+        $output .= ' doi: ' . check_plain($node->biblio_doi) . '. ';
       }
       
       // URL 
@@ -325,8 +323,8 @@ function biblio_style_chicago($node, $base = 'biblio', $inline = false) {
         $output .= l($node->biblio_url, $node->biblio_url, array('external' => TRUE));
       }
       
-      if (! preg_match("/[. *]$/", $output)) { 
-        $output .= ".";
+      if (! _biblio_style_chicago_field_is_punctuated($output)) { 
+        $output .= '.';
       }      
       break;
 
