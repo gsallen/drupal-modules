@@ -91,9 +91,10 @@ function biblio_style_chicago($node, $base = 'biblio', $inline = false) {
       $title .= '.';
     }
     
-    // journal/newspaper/magazine article, thesis
-    if ($node->biblio_type in (one, two, three)) {
-      $output .= '"' . $title . '" '    ;
+    // journal/newspaper/magazine article (102/105/106), thesis (108)
+    // @todo named constantz are teh awesome
+    if (in_array($node->biblio_type, array(102, 105, 106, 108)) ) {
+      $output .= '"' . $title . '" ';
     }
     else {
       // book chapter, conference paper, default
