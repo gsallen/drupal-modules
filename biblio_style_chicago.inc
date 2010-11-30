@@ -56,12 +56,6 @@ function biblio_style_chicago_author_options() {
  */
 function biblio_style_chicago($node, $base = 'biblio', $inline = false) {
 
-  
-  //$editors = theme('biblio_format_authors', $node->biblio_contributors[2], $author_options, $inline);
-  //if (empty($authors)) $authors = theme('biblio_authors', $node->biblio_contributors[5], 'mla', 5, $inline);  // if no authors substitute corp author if available
-  //if (empty($authors)) $authors = '[' . t('Anonymous') . ']';  // use anonymous if we still have nothing.
-  //$output .= '<span class="biblio-authors">' . $authors . "</span>.&nbsp; \n";
-  
   // @todo: punctuate output fields, push them onto a list; implode the list, instead of 
   // constantly checking for punctuation & spacing.
   
@@ -71,6 +65,8 @@ function biblio_style_chicago($node, $base = 'biblio', $inline = false) {
   }
 
   // Primary author(s)
+  // Do not use 'anonymous' for entries without authors; for anonymous works, 
+  // Chicago 16th requires the title as a substitute.
   $author_options = biblio_style_chicago_author_options();
   $authors = theme('biblio_format_authors', $node->biblio_contributors[1], $author_options, $inline);
   
@@ -94,22 +90,25 @@ function biblio_style_chicago($node, $base = 'biblio', $inline = false) {
       $title .= '.';
     }
 
-    // Format title for reference type
-    // journal/newspaper/magazine article (102/105/106), thesis (108)
+    // quoted title for journal/newspaper/magazine article (102/105/106), thesis (108)
     if (in_array($node->biblio_type, array(102, 105, 106, 108)) ) {
       $output .= '"' . $title . '" ';
     }
     else {
-      // book chapter, conference paper, default
+      // italicized title for book chapter, conference paper, default
       $output .= '<i>' . $title . '</i> ';
     }
   }
   
   switch ($node->biblio_type) {
-    //case 100:
+    case 100:
       // Book 
-      // 
-      //break;
+      // series title, series editors, original/translated title, translators
+      // editors, edition, volume
+      
+      // place of publication, publisher, pub year
+      $output .= _biblio_style_chicago_format_pubinfo($node);
+      break;
       
     case 102: //Journal Article
     case 105: //Newspaper Article
@@ -236,41 +235,23 @@ function biblio_style_chicago($node, $base = 'biblio', $inline = false) {
 
       if (!preg_match("/[?!.][ \"<i>]*$/", $output)) $output .= ".";
 
-      if (!empty($node->biblio_place_published))      // place
-      $output .= " " . $node->biblio_place_published;
-
-      if (!empty($node->biblio_publisher))      // publisher
-      {
-        if (!empty($node->biblio_place_published))
-        $output .= ":";
-
-        $output .= " " . $node->biblio_publisher;
-      }
-
-      if (!empty($node->biblio_year))      // year
-      $output .= ", " . $node->biblio_year;
-
-      if (!preg_match("/\. *$/", $output)) $output .= ".";
+      // place of publication, publisher, pub year
+      $output .= _biblio_style_chicago_format_pubinfo($node);
 
       break;
       
     case 108: 
-      // add thesis fields: degree type, institution, pub year
+      // thesis
       
-      // output degree granted, institution, and year as comma-delimited list, where given 
-      $output_fields = array();
+      // degree granted
+      if ($node->biblio_volume) {
+        // degree granted
+        $output .= $node->biblio_volume . ', ';
+      }
       
-      foreach (array($node->biblio_volume, $node->biblio_publisher, $node->biblio_year) as $field) {
-        if (! empty($field)) {
-          $output_fields[] = $field;
-        }
-      }
-      $output .= implode(', ', $output_fields);
-
-      if (!  _biblio_style_chicago_field_is_punctuated($output)) { 
-        $output .= '.';
-      }
-      $output .= ' ';
+      // institution & pub year
+      $output .= _biblio_style_chicago_format_pubinfo($node);
+      
       break;
 
     default : // all other types
@@ -357,44 +338,20 @@ function biblio_style_chicago($node, $base = 'biblio', $inline = false) {
         $output .= ", no. " . $node->biblio_issue; // is it correct to format series issues similar to journal article issues?
       }
 
-      if (!empty($node->thesis))      // thesis
-      {  
-        if (!preg_match("/[?!.][ \"" . $markupPatternsArray["italic-suffix"] . "]*$/", $output))  $output .= ".";
-        $output .= " " . $node->thesis;
-        $output .= ", " . $node->biblio_publisher;
-      }
-      else // not a thesis
-      {
-        if (!preg_match("/[?!.][ \"" . $markupPatternsArray["italic-suffix"] . "]*$/", $output)) $output .= ".";
+      if (!preg_match("/[?!.][ \"" . $markupPatternsArray["italic-suffix"] . "]*$/", $output)) $output .= ".";
 
-        if (!empty($node->biblio_place_published))      // place
-        $output .= " " . $node->biblio_place_published;
-
-        if (!empty($node->biblio_publisher))      // publisher
-        {
-          if (!empty($node->biblio_place_published))
-          $output .= ":";
-
-          $output .= " " . $node->biblio_publisher;
-        }
-      }
-
-      if (!empty($node->biblio_year))      // year
-      $output .= ", ".$node->biblio_year;
-
-      if (!preg_match("/\. *$/", $output)) $output .= ".";
+      // Pub place, publisher & year.
+      $output .= _biblio_style_chicago_format_pubinfo($node);
       break;
   }
 
-  // Optional DOI & URL are common to all ref types 
-  
-  // DOI
+  // DOI: optional, common to all ref types
   if (! empty($node->biblio_doi)) {
     // @todo: check if it's valid?
     $output .= ' doi: ' . check_plain($node->biblio_doi) . '. ';
   }
   
-  // URL 
+  // URL: optional, common to all ref types
   if (! empty($node->biblio_url)) {
     $output .= l($node->biblio_url, $node->biblio_url, array('external' => TRUE));
   }
@@ -405,4 +362,34 @@ function biblio_style_chicago($node, $base = 'biblio', $inline = false) {
 function _biblio_style_chicago_field_is_punctuated($output) {
   // $output may have been run through theming functions
   return preg_match("/ [.!?'\"]+ \s* (?: <\/\w+> \s* )*  \Z /xms", $output);
+}
+
+function _biblio_style_chicago_format_pubinfo($node) {
+  $pubinfo = '';
+  
+  if (! empty($node->biblio_place_published)) {
+    $pubinfo .= $node->biblio_place_published;
+  }
+  
+  if (! empty($node->biblio_publisher)) {
+    // precede w/ colon, if we have a publisher 
+    if (! empty($node->biblio_place_published)) {
+      $pubinfo .= ': ';
+    }
+    $pubinfo .= $node->biblio_publisher;
+  }
+
+  if (! empty($node->biblio_year)) {
+    // precede w/ comma, if publisher or pub. place given
+    if (! empty($node->biblio_place_published) or ! empty($node->biblio_publisher)) {
+      $pubinfo .= ', ';
+    }
+    $pubinfo .= $node->biblio_year;
+  }
+  
+  if ($pubinfo and ! _biblio_style_chicago_field_is_punctuated($pubinfo)) {
+    $pubinfo .= '. ';
+  }
+  
+  return $pubinfo;
 }
