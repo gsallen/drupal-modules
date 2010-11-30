@@ -98,7 +98,7 @@ function biblio_style_chicago($node, $base = 'biblio', $inline = false) {
     }
     else {
       // book chapter, conference paper, default
-      $output .= '<i>' . $title . '</i> '
+      $output .= '<i>' . $title . '</i> ';
     }
   }
 
