@@ -93,9 +93,9 @@ function biblio_style_chicago($node, $base = 'biblio', $inline = false) {
     if (! _biblio_style_chicago_field_is_punctuated($node->title)) {
       $title .= '.';
     }
-    
+
+    // Format title for reference type
     // journal/newspaper/magazine article (102/105/106), thesis (108)
-    // @todo named constantz are teh awesome
     if (in_array($node->biblio_type, array(102, 105, 106, 108)) ) {
       $output .= '"' . $title . '" ';
     }
@@ -104,8 +104,12 @@ function biblio_style_chicago($node, $base = 'biblio', $inline = false) {
       $output .= '<i>' . $title . '</i> ';
     }
   }
-
+  
   switch ($node->biblio_type) {
+    //case 100:
+      // Book 
+      // 
+      //break;
       
     case 102: //Journal Article
     case 105: //Newspaper Article
@@ -138,51 +142,10 @@ function biblio_style_chicago($node, $base = 'biblio', $inline = false) {
         $output .= theme_biblio_page_number($node->biblio_pages); // function 'formatPageInfo()' is defined in 'cite.inc.php'
       }
 
-      if ($node->online_publication == "yes") // this record refers to an online article
-      {
-        // append an optional string (given in 'online_citation') plus the current date and the DOI (or URL):
-
-        $today = date("F j, Y");
-
-        if (!empty($node->online_citation))      // online_citation
-        {
-          if (!empty($node->biblio_year) || !empty($node->biblio_volume) || !empty($node->biblio_issue) || !empty($node->biblio_alternate_title) || !empty($node->biblio_secondary_title)) // only add "," if either year, volume, issue, abbrev_journal or publication isn't empty
-          {
-            if (empty($node->biblio_pages))
-            $output .= ":"; // print instead of pages
-            else
-            $output .= ","; // append to pages
-          }
-
-          $output .= " " . $node->online_citation;
-        }
-
-        if (!empty($node->doi))      // doi
-        {
-          if (!empty($node->online_citation) OR (empty($node->online_citation) AND (!empty($node->biblio_year) || !empty($node->biblio_volume) || !empty($node->biblio_issue) || !empty($node->biblio_alternate_title) || !empty($node->biblio_secondary_title)))) // only add "." if online_citation isn't empty, or else if either year, volume, issue, abbrev_journal or publication isn't empty
-          $output .= "."; // NOTE: some Chicago examples (e.g. <http://www.lib.berkeley.edu/instruct/guides/chicago-turabianstyle.pdf>) use a comma here (not sure what's correct)
-
-          if ($encodeHTML)
-          $output .= " " . encodeHTML("http://dx.doi.org/" . $node->doi) . " (accessed " . $today . ")";
-          else
-          $output .= " " . "http://dx.doi.org/" . $node->doi . " (accessed " . $today . ")";
-        }
-        elseif (!empty($node->biblio_url))      // url
-        {
-          if (!empty($node->online_citation) OR (empty($node->online_citation) AND (!empty($node->biblio_year) || !empty($node->biblio_volume) || !empty($node->biblio_issue) || !empty($node->biblio_alternate_title) || !empty($node->biblio_secondary_title)))) // only add "." if online_citation isn't empty, or else if either year, volume, issue, abbrev_journal or publication isn't empty
-          $output .= "."; // see note for doi
-
-          if ($encodeHTML)
-          $output .= " " . encodeHTML($node->biblio_url) . " (accessed " . $today . ")";
-          else
-          $output .= " " . $node->biblio_url . " (accessed " . $today . ")";
-        }
-
-      }
-
       if (!preg_match("/\. *$/", $output)) $output .= ".";
 
       break;
+      
     case 101: //Book Chapter
     case 103: //Conference Paper
 
@@ -292,11 +255,9 @@ function biblio_style_chicago($node, $base = 'biblio', $inline = false) {
       break;
       
     case 108: 
-      // Thesis: 
-      // author(s), primary title (already output),
-      // degree type, institution, pub year, doi, url
+      // add thesis fields: degree type, institution, pub year
       
-      // degree granted, institution, and year as comma-delimited list, where given 
+      // output degree granted, institution, and year as comma-delimited list, where given 
       $output_fields = array();
       
       foreach (array($node->biblio_volume, $node->biblio_publisher, $node->biblio_year) as $field) {
@@ -310,22 +271,6 @@ function biblio_style_chicago($node, $base = 'biblio', $inline = false) {
         $output .= '.';
       }
       $output .= ' ';
-      
-      // DOI
-      if (! empty($node->biblio_doi)) {
-        // @todo: check if it's valid?
-        // @todo: check_plain or similar already called?
-        $output .= ' doi: ' . check_plain($node->biblio_doi) . '. ';
-      }
-      
-      // URL 
-      if (! empty($node->biblio_url)) {
-        $output .= l($node->biblio_url, $node->biblio_url, array('external' => TRUE));
-      }
-      
-      if (! _biblio_style_chicago_field_is_punctuated($output)) { 
-        $output .= '.';
-      }      
       break;
 
     default : // all other types
@@ -437,44 +382,23 @@ function biblio_style_chicago($node, $base = 'biblio', $inline = false) {
       if (!empty($node->biblio_year))      // year
       $output .= ", ".$node->biblio_year;
 
-      if ($node->online_publication == "yes") // this record refers to an online article
-      {
-        // append an optional string (given in 'online_citation') plus the current date and the DOI (or URL):
-
-        $today = date("F j, Y");
-
-        if (!empty($node->online_citation))      // online_citation
-        {
-          if (!preg_match("/\. *$/", $output))  $output .= ".";
-
-          $output .= " " . $node->online_citation;
-        }
-
-        if (!empty($node->doi))      // doi
-        {
-          if (!preg_match("/\. *$/", $output)) $output .= ".";
-
-          if ($encodeHTML)
-          $output .= " " . encodeHTML("http://dx.doi.org/" . $node->doi) . " (accessed " . $today . ")";
-          else
-          $output .= " " . "http://dx.doi.org/" . $node->doi . " (accessed " . $today . ")";
-        }
-        elseif (!empty($node->biblio_url))      // url
-        {
-          if (!preg_match("/\. *$/", $output)) $output .= ".";
-
-          if ($encodeHTML)
-          $output .= " " . encodeHTML($node->biblio_url) . " (accessed " . $today . ")";
-          else
-          $output .= " " . $node->biblio_url . " (accessed " . $today . ")";
-        }
-
-      }
-
       if (!preg_match("/\. *$/", $output)) $output .= ".";
       break;
   }
 
+  // Optional DOI & URL are common to all ref types 
+  
+  // DOI
+  if (! empty($node->biblio_doi)) {
+    // @todo: check if it's valid?
+    $output .= ' doi: ' . check_plain($node->biblio_doi) . '. ';
+  }
+  
+  // URL 
+  if (! empty($node->biblio_url)) {
+    $output .= l($node->biblio_url, $node->biblio_url, array('external' => TRUE));
+  }
+  
   return filter_xss($output, biblio_get_allowed_tags());
 }
 
