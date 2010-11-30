@@ -56,28 +56,37 @@ function biblio_style_chicago_author_options() {
  */
 function biblio_style_chicago($node, $base = 'biblio', $inline = false) {
 
-  $author_options = biblio_style_chicago_author_options();
-  // $authors = theme('biblio_authors', $node->biblio_contributors[1], 'mla', 1, $inline);
-
-  $authors = theme('biblio_format_authors', $node->biblio_contributors[1], $author_options, $inline);
+  
   //$editors = theme('biblio_format_authors', $node->biblio_contributors[2], $author_options, $inline);
   //if (empty($authors)) $authors = theme('biblio_authors', $node->biblio_contributors[5], 'mla', 5, $inline);  // if no authors substitute corp author if available
   //if (empty($authors)) $authors = '[' . t('Anonymous') . ']';  // use anonymous if we still have nothing.
   //$output .= '<span class="biblio-authors">' . $authors . "</span>.&nbsp; \n";
-  if (!empty ($node->biblio_citekey)&&(variable_get('biblio_display_citation_key',0))) {
+  
+  if (!empty($node->biblio_citekey) && variable_get('biblio_display_citation_key', 0)) {
     $output .= '[' . check_plain($node->biblio_citekey) . '] ';
+  }
+  
+  $author_options = biblio_style_chicago_author_options();
+  // $authors = theme('biblio_authors', $node->biblio_contributors[1], 'mla', 1, $inline);
+  $authors = theme('biblio_format_authors', $node->biblio_contributors[1], $author_options, $inline);
+  
+  if (! empty($authors)) {
+    $output .= '<span class="biblio-authors">' . $authors;
+    if (! _biblio_style_chicago_is_punctuated($authors)) {
+      $output .= '.';
+    }
+    $output .= '</span>';
   }
 
   switch ($node->biblio_type) {
+    
+    // case 100:
+      // Book, whole
+      // break;
+      
     case 102: //Journal Article
     case 105: //Newspaper Article
     case 106: //Magazine Article
-      if(!empty($authors)) {
-        $output .= '<span class="biblio-authors">';
-        $output .= $authors;
-        if (!preg_match("/\. *$/", $authors)) $output .= ".";
-        $output .= '</span>';
-      }
 
       if (!empty($node->title))      // title
       {
@@ -165,12 +174,6 @@ function biblio_style_chicago($node, $base = 'biblio', $inline = false) {
       break;
     case 101: //Book Chapter
     case 103: //Conference Paper
-      if(!empty($authors)) {
-        $output .= '<span class="biblio-authors">';
-        $output .= $authors;
-        if (!preg_match("/\. *$/", $authors)) $output .= ".";
-        $output .= '</span>';
-      }
       if (!empty($node->title))      // title
       {
         if (!empty($authors))  $output .= " ";
@@ -290,16 +293,10 @@ function biblio_style_chicago($node, $base = 'biblio', $inline = false) {
 
       break;
       
-    case 108: // Thesis
-      // @todo factor this out of cases
-      if (! empty($authors)) {
-        $output .= '<span class="biblio-authors">';
-        $output .= $authors;
-        if (! preg_match("/\. *$/", $authors)) {
-          $output .= "."; 
-        }
-        $output .= '</span>';
-      }
+    case 108: 
+      // Thesis: 
+      // author(s), title, degree type, institution, pub year, doi, url
+
       if (! empty($node->title)) {
         $url = biblio_get_title_url_info($node, $base, $inline);
         
@@ -358,13 +355,6 @@ function biblio_style_chicago($node, $base = 'biblio', $inline = false) {
       //        elseif (preg_match("[ \r\n]*\(eds\)", $node->author)) // multiple editors
       //          $author = $author . ", eds";
 
-      if (!empty($authors))      // author
-      {
-        $output .= '<span class="biblio-authors">';
-        $output .= $authors;
-        if (!preg_match("/\. *$/", $authors)) $output .= ".";
-        $output .= '</span>';
-      }
 
       if (!empty($node->title))      // title
       {
@@ -530,3 +520,7 @@ function biblio_style_chicago($node, $base = 'biblio', $inline = false) {
   return filter_xss($output, biblio_get_allowed_tags());
 }
 
+function _biblio_style_chicago_is_punctuated($output) {
+  // $output may have been run through theming functions
+  return preg_match("/ \. \s* (?: <\/\w+> \s* )*  \Z /xms", $output);
+}
