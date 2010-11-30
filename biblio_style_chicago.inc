@@ -104,7 +104,11 @@ function biblio_style_chicago($node, $base = 'biblio', $inline = false) {
     case 100:
       // Book 
       // series title, series editors, original/translated title, translators
-      // editors, edition, volume
+      
+      // editors, edition
+      
+      // volume
+      $output .= _biblio_style_chicago_format_volume($node);
       
       // place of publication, publisher, pub year
       $output .= _biblio_style_chicago_format_pubinfo($node);
@@ -202,13 +206,9 @@ function biblio_style_chicago($node, $base = 'biblio', $inline = false) {
 
         $output .= " " . $node->biblio_edition . $editionSuffix;
       }
-
-      if (!empty($node->biblio_volume))      // volume
-      {
-        if (!preg_match("/[?!.][ \"<i>]*$/", $output)) $output .= ".";
-
-        $output .= " Vol. " . $node->biblio_volume;
-      }
+    
+      // volume
+      $output .= _biblio_style_chicago_format_volume($node);
 
       if (!empty($node->biblio_alternate_title) OR !empty($node->biblio_tertiary_title)) // if there's either a full or an abbreviated series title
       {
@@ -223,6 +223,10 @@ function biblio_style_chicago($node, $base = 'biblio', $inline = false) {
         elseif (!empty($node->biblio_tertiary_title))
         $output .= $node->biblio_tertiary_title;      // full series title
 
+        /* Christ on a bike.  @fixme
+        // Value stored in $node->biblio_volume repeated in different 
+        // contexts: check available fields & usage for reference type.
+
         if (!empty($node->biblio_volume)||!empty($node->biblio_issue))
         $output .= " ";
 
@@ -234,7 +238,7 @@ function biblio_style_chicago($node, $base = 'biblio', $inline = false) {
       }
 
       if (!preg_match("/[?!.][ \"<i>]*$/", $output)) $output .= ".";
-
+      */
       // place of publication, publisher, pub year
       $output .= _biblio_style_chicago_format_pubinfo($node);
 
@@ -245,7 +249,6 @@ function biblio_style_chicago($node, $base = 'biblio', $inline = false) {
       
       // degree granted
       if ($node->biblio_volume) {
-        // degree granted
         $output .= $node->biblio_volume . ', ';
       }
       
@@ -307,13 +310,9 @@ function biblio_style_chicago($node, $base = 'biblio', $inline = false) {
 
         $output .= " " . $node->biblio_edition . $editionSuffix;
       }
-
-      if (!empty($node->biblio_volume))      // volume
-      {
-        if (!preg_match("/[?!.][ \"<i>]*$/", $output)) $output .= ".";
-
-        $output .= " Vol. " . $node->biblio_volume;
-      }
+      
+      // Volume
+      $output .= _biblio_style_chicago_format_volume($node);
       
       if (!empty($node->biblio_alternate_title) OR !empty($node->biblio_tertiary_title)) // if there's either a full or an abbreviated series title
       {
@@ -328,6 +327,13 @@ function biblio_style_chicago($node, $base = 'biblio', $inline = false) {
         elseif (!empty($node->biblio_tertiary_title))
         $output .= $node->biblio_tertiary_title;      // full series title
 
+        // @fixme
+        // What's stored in 'biblio_volume' depends on reference type.
+        // It's output above as 'Vol. \d+' but the following repeats the 
+        // same value in a different context.  'Default' formatting may not 
+        // be possible w/o a greater number of fields.  Try following the 
+        // format of RefWorks 'Generic' entries.
+        /*
         if (!empty($node->biblio_volume)||!empty($node->biblio_issue))
         $output .= " ";
 
@@ -339,6 +345,7 @@ function biblio_style_chicago($node, $base = 'biblio', $inline = false) {
       }
 
       if (!preg_match("/[?!.][ \"" . $markupPatternsArray["italic-suffix"] . "]*$/", $output)) $output .= ".";
+      */
 
       // Pub place, publisher & year.
       $output .= _biblio_style_chicago_format_pubinfo($node);
@@ -362,6 +369,30 @@ function biblio_style_chicago($node, $base = 'biblio', $inline = false) {
 function _biblio_style_chicago_field_is_punctuated($output) {
   // $output may have been run through theming functions
   return preg_match("/ [.!?'\"]+ \s* (?: <\/\w+> \s* )*  \Z /xms", $output);
+}
+
+function _biblio_style_chicago_format_volume($node) {
+  $volume = '';
+  
+  if (! empty($node->biblio_volume)) {
+    
+    // if volume string begins with a number, prepend 'Vol.' and call it done.
+    if (preg_match("/\A \s* \d+/xms", $node->biblio_volume)) {
+      $volume = 'Vol. ' . $node->biblio_volume;
+    }
+    else {
+      // Otherwise, return string as-is & hope for manual intervention.
+      // Any additional massaging is covering up bad data.
+      $volume = $node->biblio_volume;
+    }
+  
+    // punctuate if needed
+    if (! _biblio_style_chicago_field_is_punctuated($volume)) {
+      $volume .= '. ';
+    }    
+  }
+  
+  return $volume;
 }
 
 function _biblio_style_chicago_format_pubinfo($node) {
