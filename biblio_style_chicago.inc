@@ -62,20 +62,43 @@ function biblio_style_chicago($node, $base = 'biblio', $inline = false) {
   //if (empty($authors)) $authors = '[' . t('Anonymous') . ']';  // use anonymous if we still have nothing.
   //$output .= '<span class="biblio-authors">' . $authors . "</span>.&nbsp; \n";
   
+  // Citation key
   if (!empty($node->biblio_citekey) && variable_get('biblio_display_citation_key', 0)) {
     $output .= '[' . check_plain($node->biblio_citekey) . '] ';
   }
-  
+
+  // Primary author(s)
   $author_options = biblio_style_chicago_author_options();
-  // $authors = theme('biblio_authors', $node->biblio_contributors[1], 'mla', 1, $inline);
   $authors = theme('biblio_format_authors', $node->biblio_contributors[1], $author_options, $inline);
   
   if (! empty($authors)) {
-    $output .= '<span class="biblio-authors">' . $authors;
-    if (! _biblio_style_chicago_is_punctuated($authors)) {
+    $output .= '<span class="biblio-authors">' . $authors . '</span>';
+    if (! _biblio_style_chicago_field_is_punctuated($authors)) {
       $output .= '.';
     }
-    $output .= '</span>';
+    $output .= ' ';
+  }
+  
+  // Primary title
+  if (! empty($node->title)) {
+    $url = biblio_get_title_url_info($node, $base, $inline);
+    
+    $title = '<span class="biblio-title-chicago">';
+    $title .= l($node->title, $url['link'], $url['options']);
+    $title .= '</span>';
+
+    if (! _biblio_style_chicago_field_is_punctuated($node->title)) {
+      $title .= '.';
+    }
+    
+    // journal/newspaper/magazine article, thesis
+    if ($node->biblio_type in (one, two, three)) {
+      $output .= '"' . $title . '" '    ;
+    }
+    else {
+      // book chapter, conference paper, default
+      $output .= '<i>' . $title . '</i> '
+    }
   }
 
   switch ($node->biblio_type) {
@@ -87,18 +110,6 @@ function biblio_style_chicago($node, $base = 'biblio', $inline = false) {
     case 102: //Journal Article
     case 105: //Newspaper Article
     case 106: //Magazine Article
-
-      if (!empty($node->title))      // title
-      {
-        if (!empty($authors)) $output .= " ";
-        $output .= '"' ;
-        $output .= '<span class="biblio-title-chicago">';
-        $url = biblio_get_title_url_info($node, $base, $inline);
-        $output .= l($node->title, $url['link'], $url['options']);
-        $output .= "</span>";
-        if (!preg_match("/[?!.]$/", $node->title)) $output .= ".";
-        $output .= '"';
-      }
 
       // From here on we'll assume that at least either the 'author' or the 'title' field did contain some contents
       // if this is not the case, the output string will begin with a space. However, any preceding/trailing whitespace will be removed at the cleanup stage (see below)
@@ -174,19 +185,6 @@ function biblio_style_chicago($node, $base = 'biblio', $inline = false) {
       break;
     case 101: //Book Chapter
     case 103: //Conference Paper
-      if (!empty($node->title))      // title
-      {
-        if (!empty($authors))  $output .= " ";
-
-        $output .= '"<i>' ;
-        $output .= '<span class="biblio-title-chicago">';
-        $url = biblio_get_title_url_info($node, $base, $inline);
-        $output .= l($node->title, $url['link'], $url['options']);
-        $output .= "</span>";
-        $output .= '</i>';
-        if (!preg_match("/[?!.]$/", $node->title)) $output .= ".";
-        $output .= '"';
-      }
 
       $publication = preg_replace("/[ \r\n]*\(Eds?:[^\)\r\n]*\)/", "", $node->biblio_secondary_title);
       if (!empty($publication))      // publication
@@ -296,23 +294,6 @@ function biblio_style_chicago($node, $base = 'biblio', $inline = false) {
     case 108: 
       // Thesis: 
       // author(s), title, degree type, institution, pub year, doi, url
-
-      if (! empty($node->title)) {
-        $url = biblio_get_title_url_info($node, $base, $inline);
-        
-        if (! empty($authors)) {
-          $output .= " ";
-        }
-
-        // tag & punctuate title; add trailing space.
-        $output .= '<span class="biblio-title-chicago">';
-        $output .= '"' . l($node->title, $url['link'], $url['options']);
-        if (! preg_match("/[?!.]$/", $node->title)) { 
-          $output .= ".";
-        }
-        $output .= '"';
-        $output .= "</span> ";          
-      } // end if (title not empty)
       
       // degree granted, institution, and year:
       // comma-delimit as many of these as are present;
@@ -355,28 +336,6 @@ function biblio_style_chicago($node, $base = 'biblio', $inline = false) {
       //        elseif (preg_match("[ \r\n]*\(eds\)", $node->author)) // multiple editors
       //          $author = $author . ", eds";
 
-
-      if (!empty($node->title))      // title
-      {
-        $url = biblio_get_title_url_info($node, $base, $inline);
-        if (!empty($authors))
-        $output .= " ";
-
-        if (!empty($node->thesis))      // thesis
-        {
-          $output .= '<span class="biblio-title-chicago">';
-          $output .= '"' . l($node->title, $url['link'], $url['options']);
-          $output .= "</span>";
-          if (!preg_match("/[?!.]$/", $node->title)) $output .= ".";
-          $output .= '"';
-        }
-        else // not a thesis
-        $output .= '<i>';
-        $output .= '<span class="biblio-title-chicago">';
-        $output .= l($node->title, $url['link'], $url['options']);
-        $output .= "</span>";
-        $output .= '</i>';
-      }
       $publication = preg_replace("/[ \r\n]*\(Eds?:[^\)\r\n]*\)/", "", $node->biblio_secondary_title);
       if (!empty($publication))      // publication
       $output .= " In <i>$publication</i>";
@@ -520,7 +479,7 @@ function biblio_style_chicago($node, $base = 'biblio', $inline = false) {
   return filter_xss($output, biblio_get_allowed_tags());
 }
 
-function _biblio_style_chicago_is_punctuated($output) {
+function _biblio_style_chicago_field_is_punctuated($output) {
   // $output may have been run through theming functions
-  return preg_match("/ \. \s* (?: <\/\w+> \s* )*  \Z /xms", $output);
+  return preg_match("/ [.!?'\"]+ \s* (?: <\/\w+> \s* )*  \Z /xms", $output);
 }
