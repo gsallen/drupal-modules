@@ -1,0 +1,179 @@
+<?php
+
+/* 
+ * nativeportal_captionlinkpair_field_info()
+ * implementation of hook_field_info().
+ */
+function nativeportal_captionlinkpair_field_info() {
+	return array(
+		'nativeportal_captionlinkpair' => array(
+			'label' => t('Caption Links'),
+			'description' => t('Stores an English and Native language representation of the example phrase.'),
+		),
+	);
+}
+
+
+/*
+ * nativeportal_captionlinkpair_field_settings($op, $field)
+ * implementation of hook_field_settings().
+ */
+function nativeportal_captionlinkpair_field_settings($op, $field) {
+	switch ($op) {
+		case 'database columns':
+			$columns = array(
+				'link_phrase' => array(	'type' => 'varchar',
+											'length' => 255,
+											'not null' => FALSE,
+											'sortable' => TRUE
+										),
+				'target_node' => array(	'type' => 'int',
+											'not null' => FALSE,
+											'sortable' => TRUE
+										),
+				);
+		return $columns;
+	}
+}
+
+
+/*
+ * nativeportal_captionlinkpair_content_is_empty($item, $field)
+ * implementation of hook_content_is_empty().
+ */
+function nativeportal_captionlinkpair_content_is_empty($item, $field) {
+	if (trim($item['link_phrase'])=='' || trim($item['target_node'])=='') {
+		return TRUE;
+	}
+	return FALSE;
+}
+
+
+/*
+ * nativeportal_captionlinkpair_theme()
+ * implementation of hook_theme().
+ */
+function nativeportal_captionlinkpair_theme() {
+	return array(
+		'nativeportal_captionlinkpair_formatter_default' => array(
+			'arguments' => array('element' => NULL),
+		),
+		'nativeportal_captionlinkpair' => array(
+			'arguments' => array('element' => NULL),
+		),
+	);
+}
+
+
+/*
+ * nativeportal_captionlinkpair_field_formatter_info()
+ * implementation of hook_field_formatter_info().
+ */
+function nativeportal_captionlinkpair_field_formatter_info() {
+	return array(
+		'default' => array(
+			'label' => t('Default'),
+			'field types' => array('nativeportal_captionlinkpair'),
+			'multiple values' => CONTENT_HANDLE_CORE,
+		),
+	);
+}
+
+/*
+ * theme_nativeportal_captionlinkpair_formatter_default($element
+ * Provides a default formatter for our new CCK item. This really isn't used.
+ */
+function theme_nativeportal_captionlinkpair_formatter_default($element) {
+	$output = '';
+	$output .= '<div class="nativeportal_captionlinkpair-phrase">' . $element['#item']['link_phrase'] . '</div>';
+	$output .= '<div class="nativeportal_captionlinkpair-nodetarget">' . $element['#item']['target_node'] . '</div>';
+	return $output;
+}
+
+
+/*
+ * theme_nativeportal_captionlinkpair($element
+ * Default formatter for FAPI
+ */
+function theme_nativeportal_captionlinkpair($element) {
+	$output = '';
+	$output .= '<div class="nativeportal_captionlinkpair">';
+	$output .= theme('textfield', $element['link_phrase']);
+	$output .= theme('textfield', $element['target_node']);
+	$output .= '</div>';
+	return $output;
+}
+
+
+/*
+ * nativeportal_captionlinkpair_elements()
+ * Implementation of hook_elements()
+ */
+function nativeportal_captionlinkpair_elements() {
+	$elements = array(
+		'nativeportal_captionlinkpair' => array(
+			'#input' => TRUE,
+			'#process' => array('nativeportal_captionlinkpair_process'),
+		),
+	);
+	return $elements;
+}
+
+
+/*
+ * nativeportal_captionlinkpair_widget_info()
+ * Implementation of hook_widget_info()
+ */
+function nativeportal_captionlinkpair_widget_info() {
+	return array(
+		'nativeportal_captionlinkpair' => array(
+			'label' => 'Caption Link Pair',
+			'field types' => array('nativeportal_captionlinkpair'),
+			'multiple values' => CONTENT_HANDLE_CORE,
+		),
+	);
+}
+
+
+/*
+ * nativeportal_captionlinkpair_widget(&$form, &$form_state, $field, $items, $delta = 0)
+ * Implementation of hook_widget()
+ */
+function nativeportal_captionlinkpair_widget(&$form, &$form_state, $field, $items, $delta = 0) {
+
+	$element = array(
+		'#type' => $field['widget']['type'],
+		'#default_value' => isset($items[$delta]) ? $items[$delta] : '',
+		'#title' => $field['widget']['label'],
+		'#field' => $field,
+	);
+	return $element;
+}
+
+
+/*
+ * nativeportal_captionlinkpair_process($element, $edit, $form_state, $form)
+ * Implementation of hook_process()
+ */
+function nativeportal_captionlinkpair_process($element, $edit, $form_state, $form) {
+
+	$element['link_phrase'] = array(
+		'#type' => 'textfield',
+		'#title' => t('Phrase In Caption To Link to Node'),
+		'#maxlength' => '255',
+		'#default_value' => isset($element['#value']['link_phrase']) ? $element['#value']['link_phrase'] : NULL,
+	);
+	$element['target_node'] = array(
+		'#type' => 'textfield',
+		'#title' => t('Target Node to Link Phrase To'),
+		'#maxlength' => '255',
+		'#default_value' => isset($element['#value']['target_node']) ? $element['#value']['target_node'] : NULL,
+		'#autocomplete_path' => 'passamaquoddy/nodereference/autocomplete',
+	);
+
+	return $element;
+
+}
+
+
+?>

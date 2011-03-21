@@ -1,0 +1,7 @@
+name = "Caption Link Pair"
+description = "Defines and creates a CCK field to store a caption link pair (word/target node)."
+version = "6.x-1.0"
+dependencies[] = content
+dependencies[] = nativeportal_coreoperations
+package = Native Language Portal
+core = 6.x

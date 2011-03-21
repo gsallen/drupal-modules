@@ -1,0 +1,186 @@
+<?php
+
+
+/*
+ * nativeportal_dictionaryentry_init()
+ * Implementation of hook_init().
+ */
+function nativeportal_dictionaryentry_init() {
+	drupal_add_css(drupal_get_path('module', 'nativeportal_dictionaryentry'). '/css/nativeportal_dictionaryentry.css');
+}
+
+
+/*
+ * _nativePortalGetExamplePhraseTable($node)
+ * Returns the example phrase table, rendered HTML in table form.
+ * 
+ * $node : OBJ of node to render from.
+ */
+function _nativePortalGetExamplePhraseTable($node) {
+
+	if (trim($node->field_phrasepairexample[0]['native_phrase'])!='') {
+
+		$exampleTableHeaderRows=array(
+			'Native Representation',
+			'English Representation',
+		);
+
+		$exampleTableDataRows=array();
+
+		// Iterate 
+		foreach ($node->field_phrasepairexample as $curExamplePhrase) {
+
+			$exampleTableDataRows[]=array(
+				'data' =>	array (
+								array(
+									'data' => t($curExamplePhrase['native_phrase']),
+									'class' => 'nativeExamplePhrase',
+								),
+								array(
+									'data' => t($curExamplePhrase['english_phrase']),
+									'class' => 'englishExamplePhrase',
+								),
+							),
+				'class' => 'singleExampleRow',
+			);
+		}
+		return(theme_table($exampleTableHeaderRows, $exampleTableDataRows,array('class'=>'examplePhraseTable')));
+	} else {
+		return(t('There are no examples given for this word yet.'));
+	}
+
+}
+
+
+
+/*
+ * _nativePortalGetVideosReferencingDictionaryEntryTable($nid,$weightToUse)
+ * Returns the example phrase table in unrendered FAPI element form.
+ * 
+ * $nid : INT of node ID to render from.
+ * $weightToUse : INT of weight to use in element.
+ */
+function _nativePortalGetVideosReferencingDictionaryEntryTable($nid,$weightToUse) {
+
+	$arrayOfNodesToDisplay=_nativePortalGetVideosReferencingDictionaryEntry($nid);
+
+	if (count($arrayOfNodesToDisplay)>0) {
+
+		$exampleTableHeaderRows=array(
+			'Title Of Video',
+			'Approximate Time Word Is Spoken',
+		);
+
+		$exampleTableDataRows=array();
+
+		// Iterate
+		foreach ($arrayOfNodesToDisplay as $curNIDToReference) {
+			
+			$curNodeBeingReferenced=node_load($curNIDToReference['nid']);
+			
+			$exampleTableDataRows[]=array(
+				'data' =>	array (
+								array(
+									'data' => l($curNodeBeingReferenced->title,'node/'.$curNIDToReference['nid'],array('query' => 'startTime='.$curNIDToReference['time'])),
+									'class' => '',
+								),
+								array(
+									'data' => _nativePortalFormatSubripTimeFromSeconds($curNIDToReference['time'],0),
+									'class' => '',
+								),
+							),
+				'class' => '',
+			);
+		}
+	}
+
+	return array(
+			'#type' => 'markup',
+			'#prefix' => '<div class="videosReferencingThisNodeContainer">',
+			'#suffix' => '</div>',
+			'#value' => theme_table($exampleTableHeaderRows, $exampleTableDataRows),
+			'#weight' => $weightToUse,
+	);
+
+}
+
+
+/*
+ * _nativePortalGetVideosReferencingDictionaryEntry($nid)
+ * Returns an array of NID values that reference the dictionary entry node NID.
+ * 
+ * $nid : INT of nodeID being queried.
+ */
+function _nativePortalGetVideosReferencingDictionaryEntry($nid) {
+	$arrayToReturn=array();
+	$captionLinkQuery = db_query("SELECT nid,{field_captionslinks_link_phrase} as link_phrase FROM {content_field_captionslinks} WHERE {field_captionslinks_target_node} = '%s'", $nid);
+	while ($captionLinkRow = db_fetch_object($captionLinkQuery )) {
+
+		$captionTimeQuery=db_query('SELECT {field_captionsdata_start_time} as start_time from {content_field_captionsdata} WHERE {field_captionsdata_native_phrase} LIKE "%'.$captionLinkRow->link_phrase.'%"');
+		while ($captionTimeRow = db_fetch_object($captionTimeQuery)) {
+			$timeOfOccurence=$captionTimeRow->start_time;
+		}
+
+		$arrayToReturn[]=array(
+			'nid' => $captionLinkRow->nid,
+			'time' => $timeOfOccurence
+		);
+	}
+	return($arrayToReturn);
+}
+
+
+/*
+ * nativeportal_dictionaryentry_nodeapi($node, $op, $teaser, $page)
+ * Implementation of hook_nodeapi()
+ */
+function nativeportal_dictionaryentry_nodeapi($node, $op, $teaser, $page) {
+	if ($op == 'delete') {
+		if ($node->type=='dictionaryentry') {
+			// If we are deleting, tidy up any links in videos relating to this entry.
+			_nativePortalTidyCaptionLinks($node,'dictionaryentry');
+		}
+	}
+}
+
+
+/*
+ * _nativePortalDoRecordingsExist($nodeIDToCheck)
+ * Check if audio recording nodes exist that refer to the NID passed.
+ * 
+ * $nodeIDToCheck : INT of node to be checked.
+ */
+function _nativePortalDoRecordingsExist($nodeIDToCheck) {
+	$findRecordingQuery = "SELECT nid FROM {content_type_nativespeakeraudio} WHERE {field_parentdictionaryentry_nid} = '%d' LIMIT 1 ";
+	$foundNID = db_result(db_query($findRecordingQuery, $nodeIDToCheck));
+	if ($foundNID) {
+		return TRUE;
+	}
+	return FALSE;
+}
+
+
+/*
+ * nativeportal_dictionaryentry_theme($existing, $type, $theme, $path)
+ * Implementation of hook_theme()
+ */
+function nativeportal_dictionaryentry_theme($existing, $type, $theme, $path) {
+	
+	return array(
+		'views_view_field__audioRecordingLister__field_nativespeechaudiofile_fid' => array(
+			'arguments' => array('view' => NULL, 'field' => NULL, 'row' => NULL, 'output' => NULL),
+			'template' => 'views-view-field--audioRecordingLister--field-nativespeechaudiofile-fid',
+			'original hook' => 'views_view_field',
+			'path' => drupal_get_path('module', 'nativeportal_dictionaryentry') . '/theme',
+			),
+		'views_view_field__audioRecordingLister__uid' => array(
+			'arguments' => array('view' => NULL, 'field' => NULL, 'row' => NULL, 'output' => NULL),
+			'template' => 'views-view-field--audioRecordingLister--uid',
+			'original hook' => 'views_view_field',
+			'path' => drupal_get_path('module', 'nativeportal_dictionaryentry') . '/theme',
+			),
+	);
+}
+
+
+?>

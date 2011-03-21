@@ -1,0 +1,7 @@
+name = "Video Caption Data Structure"
+description = "Defines and creates a CCK structure to store a Start Time/End Time/English Phrase/Native Phrase set."
+version = "6.x-1.0"
+dependencies[] = content
+dependencies[] = nativeportal_coreoperations
+package = Native Language Portal
+core = 6.x

@@ -1,0 +1,5 @@
+name = "Core Operation Functions"
+description = "Functions necessary for the operation of the Native Language Portal."
+version = "6.x-1.0"
+package = Native Language Portal
+core = 6.x

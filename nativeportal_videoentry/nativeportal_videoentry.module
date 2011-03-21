@@ -1,0 +1,1521 @@
+<?php
+
+
+/*
+ * nativeportal_videoentry_init()
+ * Implementation of hook_init()
+ */
+function nativeportal_videoentry_init() {
+	drupal_add_js(drupal_get_path('module', 'nativeportal_videoentry'). '/js/nativeportal_videoentry.js');
+	drupal_add_css(drupal_get_path('module', 'nativeportal_videoentry'). '/css/nativeportal_videoentry.css');
+	drupal_add_css(drupal_get_path('module', 'jquery_ui'). '/jquery.ui/themes/default/ui.all.css');
+	jquery_ui_add(array('ui.dialog','ui.draggable'));
+}
+
+
+/*
+ * nativeportal_videoentry_menu()
+ * Implementation of hook_menu()
+ * Add custom path callbacks used by the video player
+ */
+function nativeportal_videoentry_menu() {
+
+	$items['entry/cleandefinition/%'] = array(
+		'page callback' => '_nativePortalGetCleanEntryDefinitionBlock',
+		'type' => MENU_CALLBACK,
+		'access arguments' => array('access content'),
+	);
+
+	$items['video/captions/%'] = array(
+		'page callback' => '_nativePortalGetVideoCaptionFile',
+		'type' => MENU_CALLBACK,
+		'access arguments' => array('access content'),
+	);
+
+	$items['video/delcaptions/%'] = array(
+		'page callback' => '_nativePortalDeleteCaptionLine',
+		'type' => MENU_CALLBACK,
+		'access arguments' => array('edit content'),
+	);
+
+	$items['node/%node/managecaptions']  = array(
+		'title' => 'Manage Captions',
+		'page callback' => 'drupal_get_form',
+		'page arguments' => array('_nativePortal_video_captions_form'),
+		'access callback' => '_nativePortal_video_captions_access',
+		'type' => MENU_LOCAL_TASK,
+		'weight' => 11,
+	);
+
+	$items['video/addcaptions/%'] = array(
+		'page callback' => '_nativePortalAddCaptionToVideoNode',
+		'type' => MENU_CALLBACK,
+		'access arguments' => array('edit content'),
+	);
+
+	$items['video/captionlinkmanage/%'] = array(
+		'page callback' => '_nativePortalManagedLinkedWords',
+		'type' => MENU_CALLBACK,
+		'access arguments' => array('edit content'),
+	);
+
+	$items['video/nodeTitleAutocomplete'] = array(
+		'title' => 'Autocomplete for dictionary node titles',
+		'page callback' => '_nativePortalCaptionNodeAutocomplete',
+		'access arguments' => array('access content'),
+		'access callback' => TRUE,
+		'type' => MENU_CALLBACK,
+	); 
+
+	return $items;
+}
+
+
+/*
+ * _nativePortalDeleteCaptionLine()
+ * 
+ * Deletes a caption line from the database.
+ * 
+ * Receives callback from jQuery nativePortalDeleteCaptionRow().
+ * 
+ * arg(2) : nid
+ * arg(3) : captionkey
+ */
+function _nativePortalDeleteCaptionLine() {
+
+	// Load Node In
+	$nodeToDeleteCaptionLine=node_load(arg(2));
+	$captionIndexToDelete=(int)arg(3);
+
+	// Check node is type 'video'
+	if ($nodeToDeleteCaptionLine->type == 'video') {
+		// Check caption element exists.
+		if ($nodeToDeleteCaptionLine->field_captionsdata[$captionIndexToDelete]) {
+
+			// Unset caption element
+			unset ($nodeToDeleteCaptionLine->field_captionsdata[$captionIndexToDelete]);
+
+			// Tidy up orphan links.
+			_nativePortalTidyCaptionLinks($nodeToDeleteCaptionLine,'caption');
+
+			// Save node.
+			if (_nativePortalSaveNode('video_node_form',$nodeToDeleteCaptionLine)) {
+				watchdog('native_video','Caption Line Deleted : ['.arg(2).'|'.arg(3).']');
+			} else {
+				print "Node Save Operation failed.";
+			}
+
+		} else {
+			$messageToPrint="Target caption element does not exist";
+			watchdog('native_video','Caption Line Not Deleted :'.$messageToPrint);
+			print $messageToPrint;
+		}
+	} else {
+		$messageToPrint="Target node type is invalid";
+		watchdog('native_video','Caption Line Not Deleted :'.$messageToPrint);
+		print $messageToPrint;
+	}
+}
+
+
+/*
+ * _nativePortalCaptionNodeAutocomplete($string)
+ * Callback function used to deliver results to the target_node autocomplete during
+ * form submission.
+ * 
+ * $string : STR to match in DB.
+ * 
+ * $limitItems is used to ease performance on JSON object transfer. It does NOT speed up the query.
+ */
+function _nativePortalCaptionNodeAutocomplete($string) {
+	$limitItems=10;
+	$items = array();
+	$result = db_query("SELECT node.nid, node.title FROM {node} WHERE status = 1 AND type='dictionaryentry' AND title LIKE '%s%' LIMIT $limitItems", $string);
+	while($obj = db_fetch_object($result)) {
+		$items[$obj->title.' ['.$obj->nid.']'] = check_plain($obj->title);
+	}
+	drupal_json($items);
+}
+
+
+/*
+ * _nativePortalManagedLinkedWords()
+ * Callback from hook_menu hits to manage caption links. 
+ * 
+ * arg(2) : nid of video node to update
+ * arg(3) : operation to perform - Implemented ops: new, del. Legacy : update.
+ * arg(4) : phrase in caption to use as link anchor.
+ * arg(5) : node-we-are-referring-to string representation. See below with matching, etc.
+ * 
+ * This is a VALIDATION MONSTER MUWHA-WHA-WHA.
+ * 
+ */
+function _nativePortalManagedLinkedWords() {
+
+	$dictionaryNIDToLink='';
+	// We have to work a bit to get the NID out of arg(5).
+	// First, they most likely used the custom format we defined. Let's make sure this matches.
+	// $customFormatMask='/^[a-zA-Z \'-0-9]+ \[([0-9]+)\]$/'; OLD Value too specific I think
+	$customFormatMask='/^.* \[([0-9]+)\]$/';
+	// Also, they may have sent ONLY the NID. This would be rare but could happen.
+	$onlyIntegersMask='/^([0-9]+$)/';
+
+	// Check for each. 
+	if (preg_match($customFormatMask, trim(arg(5)), $nidMatchArray)) {
+		$dictionaryNIDToLink=$nidMatchArray[1];
+		watchdog('native_video',"NID $dictionaryNIDToLink matched through custom format mask.");
+	} elseif (preg_match($onlyIntegersMask, trim(arg(5)), $nidMatchArray)) {
+		$dictionaryNIDToLink=$nidMatchArray[1];
+		watchdog('native_video',"NID $dictionaryNIDToLink matched through integer mask.");
+	} else {
+		// Make sure target node is not null, and is a dictionary entry.
+		if(trim(arg(5))!='') {
+			$testNodeTitleMatch=node_load(array('title' => trim(arg(5))));
+			if ($testNodeTitleMatch->type=='dictionaryentry') {
+				$dictionaryNIDToLink=$testNodeTitleMatch->nid;
+			} else {
+				print $watchDogMessage="Invalid Target Node.";
+				$watchDogStringToReturn="Caption Not Modified : $watchDogMessage";
+				watchdog('native_video',$watchDogStringToReturn);
+				die;
+			}
+		} else {
+			// No match. Die.
+			print $watchDogMessage="Null Target Node.";
+			$watchDogStringToReturn="Caption Not Modified : $watchDogMessage";
+			watchdog('native_video', $watchDogStringToReturn);
+			die;
+		}
+	}
+
+	// Check if parent nid is type video.
+	$videoNodeToUpdate=node_load(arg(2));
+	if ($videoNodeToUpdate->type != 'video') {
+		print $watchDogMessage="Invalid Video Node Specified";
+		$watchDogStringToReturn="Caption Not Modified : $watchDogMessage";
+		watchdog('native_video',$watchDogStringToReturn);
+		die;
+	}
+
+	// Check if link target is type entry.
+	// However : on delete, we don't really care.
+	if (arg(3) != 'del') {
+	$dictionaryNodeToCheck=node_load($dictionaryNIDToLink);
+		if ($dictionaryNodeToCheck->type != 'dictionaryentry') {
+			print $watchDogMessage="Invalid Dictionary Node Specified";
+			$watchDogStringToReturn="Caption Not Modified : $watchDogMessage";
+			watchdog('native_video',$watchDogStringToReturn);
+			die;
+		}
+	}
+
+	$operationToPerform=arg(3);
+	$phraseToLinkInCaption=arg(4);
+	$tripletStringForLog="[{$videoNodeToUpdate->nid}|$phraseToLinkInCaption|$dictionaryNIDToLink]";
+	$watchDogStringToReturn='';
+
+
+	// We need to loop through and check 3 things:
+	// 1) Find a potential existing caption node index. This is needed for both operations (in 'new' it makes sure that there is no index with this already.
+	// 2) That this word/phrase exists in one of the captions WITH appropriate boundaries (no partial words)
+	// X) That we're not trying to link something that is already linked partially elsewhere. ***NOT NECESSARY DUE TO SORTER ALGO?**
+	// #1
+	$captionMatchingIndex=FALSE;
+	foreach ($videoNodeToUpdate->field_captionslinks as $curCaptionIndexKey => $curCaptionLink) {
+		if ($curCaptionLink['link_phrase'] == $phraseToLinkInCaption) {
+			$captionMatchingIndex=$curCaptionIndexKey;
+		}
+	}
+
+	// #2. This mask restricts partial words! Can't be linking in the middle of words.
+	$viablePlacementFound=0;
+	$maskToMatchWordBoundary='/\b'.$phraseToLinkInCaption.'\b/';
+
+	// Check if viable placement found anywhere.
+	foreach ($videoNodeToUpdate->field_captionsdata as $curCaptionLine) {
+		if (preg_match($maskToMatchWordBoundary,$curCaptionLine['native_phrase'])) {
+			$viablePlacementFound=1;
+		}
+	}
+
+
+	// If we're not adding, we don't need to see if this link is a viable placement:
+	if ($operationToPerform!='add' || $viablePlacementFound==1) {
+
+		switch ($operationToPerform) {
+
+			// Phased out, too complex.
+			// case 'update':
+			// break;
+
+			case 'add':
+				// We need a matching item to delete anything.
+				if ($captionMatchingIndex=='') {
+
+					$videoNodeToUpdate->field_captionslinks[]=array(
+						'link_phrase' => trim($phraseToLinkInCaption),
+						'target_node' => $dictionaryNIDToLink,
+					);
+
+					// Save node.
+					if (_nativePortalSaveNode('video_node_form',$videoNodeToUpdate)) {
+						$watchDogStringToReturn="Caption Link Added $tripletStringForLog";
+					} else {
+						print "Node Save Operation failed.";
+					}
+
+				} else {
+					print $watchDogMessage="Add Requested, But Matching Link Exists!";
+					$watchDogStringToReturn="Caption Not Modified : $watchDogMessage";
+					watchdog('native_video',$watchDogStringToReturn);
+					break;
+				}
+			break;
+
+			case 'del':
+				// We need a matching item to delete anything.
+				// Array value can be as low as zero. Zero is sometimes interpreted
+				// as FALSE, etc. FALSE, however is never greater than -1. Winning.
+				if ($captionMatchingIndex > -1) {
+					unset($videoNodeToUpdate->field_captionslinks[$captionMatchingIndex]);
+
+					// Save node.
+					if (_nativePortalSaveNode('video_node_form',$videoNodeToUpdate)) {
+						$watchDogStringToReturn="Caption Link Deleted $tripletStringForLog";
+					} else {
+						print "Node Save Operation failed.";
+					}
+
+				} else {
+					print $watchDogMessage="Delete Requested [$captionMatchingIndex]- No Matching Link";
+					$watchDogStringToReturn="Caption Not Modified : $watchDogMessage";
+					watchdog('native_video',$watchDogStringToReturn);
+					break;
+				}
+			break;
+
+			default:
+				print $watchDogMessage="Improper Operation Specified";
+				$watchDogStringToReturn="Caption Not Modified : $watchDogMessage";
+			break;
+
+		}
+	} else {
+		print $watchDogMessage="Phrase Not Found In Captions";
+		$watchDogStringToReturn="Caption Not Modified : $watchDogMessage";
+		watchdog('native_video',$watchDogStringToReturn);
+	}
+
+	// Execute watchdog call
+	watchdog('native_video',$watchDogStringToReturn);
+
+}
+
+
+/*
+ * _nativePortalAddCaptionToVideoNode()
+ * Callback from hook_menu that adds a video caption to a node object.
+ * Called by nativePortalAddCaptionLineToDatabase() in jQuery.
+ * 
+ * arg(2) : nid
+ * arg(3) : start time
+ * arg(4) : end time
+ * arg(5) : caption english
+ * arg(6) : caption native
+ * 
+ */
+function _nativePortalAddCaptionToVideoNode() {
+
+	// validate node
+	$nodeToUpdate=node_load(arg(2));
+	if ($nodeToUpdate->type=='video') {
+
+		// Validate start time
+		$secondsStartVal=_nativePortalValidateCaptionInsertTime(arg(3),$nodeToUpdate->field_videolength[0]['value']);
+
+		// Validate end time
+		$secondsEndVal=_nativePortalValidateCaptionInsertTime(arg(4),$nodeToUpdate->field_videolength[0]['value']);
+
+		// Sanitize caption 1 for no HTML
+		$englishCaptionString=strip_tags(arg(5));
+
+		// Sanitize caption 2 for no HTML
+		$nativeCaptionString=strip_tags(arg(6));
+
+		$elementToAddToCaptions=array(
+				'start_time' => $secondsStartVal,
+				'end_time' => $secondsEndVal,
+				'native_phrase' => $nativeCaptionString,
+				'english_phrase' => $englishCaptionString,
+			);
+
+		// Validation done here too : calling _nativePortalValidateNewCaption(
+		if (	$secondsStartVal &&
+				$secondsEndVal &&
+				$secondsStartVal<$secondsEndVal &&
+				_nativePortalValidateNewCaption($nodeToUpdate->field_captionsdata,$elementToAddToCaptions) &&
+				strlen($englishCaptionString)>0 &&
+				strlen($nativeCaptionString)>0 ) {
+
+			// Add values to node object.
+			$nodeToUpdate->field_captionsdata[]=$elementToAddToCaptions;
+
+			// Resave.
+			if (_nativePortalSaveNode('video_node_form',$nodeToUpdate)) {
+				$watchDogStringToReturn="Caption Link Added $tripletStringForLog";
+			} else {
+				print "Node Save Operation failed.";
+			}
+
+		} else {
+			// Print out errors as they apply.
+			$errorMessageToPrint='Error : ';
+			if (!$secondsStartVal) {
+				$errorMessageToPrint.="Start time is outside length of video.\n";
+			}
+			if (!$secondsEndVal) {
+				$errorMessageToPrint.="End time is outside length of video.\n";
+			}
+			if ($secondsStartVal>=$secondsEndVal) {
+				$errorMessageToPrint.="Start time is equal to or later than End time.\n";
+			}
+			if (!_nativePortalValidateNewCaption($nodeToUpdate->field_captionsdata,$elementToAddToCaptions)) {
+				$errorMessageToPrint.="Caption times overlap with existing caption.\n";
+			}
+			if (strlen($englishCaptionString)==0) {
+				$errorMessageToPrint.="English Caption Contains No Data.\n";
+			}
+			if (strlen($nativeCaptionString)==0) {
+				$errorMessageToPrint.="Native Caption Contains No Data.\n";
+			}
+
+			print $errorMessageToPrint;
+
+		}
+	}
+}
+
+
+/*
+ * _nativePortalValidateCaptionInsertTime($timeStringValue,$lengthOfVideo)
+ * Validates caption time to make sure that it is appropriate.
+ * 
+ * $timeStringValue : STR of value to be inserted.
+ * $lengthOfVideo : INT value of video length. 
+ */
+function _nativePortalValidateCaptionInsertTime($timeStringValue,$lengthOfVideo) {
+
+	// is_int() here not appropriate? 
+	if ((int) $timeStringValue > 0) {
+		$seconds=$timeStringValue;
+	} else {
+		// Ok, not seconds value. May be passed as 00:00:XX
+		if (preg_match('/\d{2}\:\d{2}\:\d{2}/', $timeStringValue)) {
+			list($h, $m, $s) = explode (":", $timeStringValue);
+			$seconds = 0;
+			$seconds += (intval($h) * 3600);
+			$seconds += (intval($m) * 60);
+			$seconds += (intval($s));
+		} else {
+			// Not a time value that we understand.
+			return(FALSE);
+		}
+	}
+	// Now validate it.
+	if ($seconds<$lengthOfVideo) {
+		return($seconds);
+	} else {
+		return(FALSE);
+	}
+
+	return(FALSE);
+}
+
+
+/*
+ * _nativePortal_video_captions_access()
+ * Access callback to determine if 'Manage Captions' tab should be shown.
+ */
+function _nativePortal_video_captions_access() {
+	
+	$nodeToCheck=node_load(arg(1) );
+
+	if ($nodeToCheck->type == 'video' && user_access('edit content')) {
+		return TRUE;
+	}
+
+	return FALSE;
+}
+
+
+/*
+ * _nativePortal_video_captions_form()
+ * Callback that generates the 'manage captions' form.
+ * 
+ * arg(1) : NID of video node being modified.
+ */
+function _nativePortal_video_captions_form() {
+	$nid = arg(1);
+	if(is_numeric($nid) && $nid > 0) {
+
+		$form=array();
+		$node = node_load($nid);
+
+		// Add in elements for add widget.
+		_generateFormForLinkEntry(&$form,$nid);
+
+		// Add in elements for modification widget.
+		_generateFormForLinkModification(&$form,$nid);
+
+		$form['videoContainer'] = array(
+			'#type' => 'markup',
+			'#prefix' => '<div id="videoContainer" style="text-align:center;">',
+			'#suffix' => '</div>',
+			'#weight' => 0,
+		);
+
+		$form['videoContainer']['previousButton'] = array(
+			'#type' => 'markup',
+			'#value' => _nativePortalGetVideoPlayerHTML($node),
+			'#weight' => 0,
+			'#name' => 'playerContainer',
+		);
+
+		$form['manageCaptionsTabset'] = array(
+			'#type' => 'tabset',
+		);
+
+		$form['manageCaptionsTabset']['manageCaptionEntries'] = array(
+			'#type' => 'tabpage',
+			'#title' => t('Manage Caption Lines'),
+		);
+
+		$form['manageCaptionsTabset']['manageCaptionEntries']['newCaptionElementContainer'] = array(
+			'#type' => 'markup',
+			'#prefix' => '<div id="newCaptionElementContainer" style="text-align:center;">',
+			'#suffix' => '</div>',
+			'#weight' => 1,
+		);
+
+		_nativePortalGetAddCaptionLineFormElement($form,$nid);
+
+		$form['manageCaptionsTabset']['manageCaptionEntries']['captionContainer'] = array(
+			'#type' => 'markup',
+			'#prefix' => '<div id="captionContainer" style="text-align:center;">',
+			'#suffix' => '</div>',
+			'#weight' => 2,
+		);
+
+		$form['manageCaptionsTabset']['manageCaptionEntries']['captionContainer']['captionTable'] = _generateLinkedSortedCaptionsArrayTableFormElement(
+				$nid,
+				$node->field_captionsdata,
+				$node->field_captionslinks,
+				'captionElementListContainer',
+				'updateCaptionLink',
+				'0',
+				'1',
+				''
+			);
+
+		$form['manageCaptionsTabset']['manageCaptionLinks'] = array(
+			'#type' => 'tabpage',
+			'#title' => t('Manage Caption Links'),
+		);
+
+		$form['manageCaptionsTabset']['manageCaptionLinks']['linkingInstructions'] = array(
+			'#type' => 'markup',
+			'#prefix' => '<div class="linkInstructionContainer">',
+			'#suffix' => '</div>',
+			'#weight' => 1,
+		);
+	
+		$form['manageCaptionsTabset']['manageCaptionLinks']['linkingInstructions']['title'] = array(
+			'#type' => 'markup',
+			'#prefix' => '<h2>',
+			'#value' => 'Creating a New Link:',
+			'#suffix' => '</h2>',
+			'#weight' => 2,
+		);
+
+		$form['manageCaptionsTabset']['manageCaptionLinks']['linkingInstructions']['instructiontext'] = array(
+			'#type' => 'markup',
+			'#prefix' => '<p>',
+			'#value' => 'To create a new link in the captions, highlight a native with your mouse in the "Current Captions Element" box. A box will pop-up to finish defining the link.',
+			'#suffix' => '</p>',
+			'#weight' => 3,
+		);
+
+		$form['manageCaptionsTabset']['manageCaptionLinks']['captionContainer'] = array(
+			'#type' => 'markup',
+			'#prefix' => '<div id="captionContainer" style="text-align:center;">',
+			'#suffix' => '</div>',
+			'#weight' => 4,
+		);
+
+		$form['manageCaptionsTabset']['manageCaptionLinks']['captionContainer']['captionTable'] = _generateLinkedSortedCaptionsArrayTableFormElement(
+				$nid,
+				$node->field_captionsdata,
+				$node->field_captionslinks,
+				'captionElementLinkContainer',
+				'updateCaptionLink',
+				'0',
+				'0',
+				'bindNativeMouseUpSelector'
+			);
+
+		$form['#nid'] = $nid;
+	}
+
+	return $form;
+}
+
+
+/*
+ * _nativePortalGetVideoInformationBlock($nid)
+ * Generates HTML table of video information to display in tab on Video page.
+ * 
+ * $videoNodeObject : OBJ of drupal Node to pull data from.
+ * 
+ * TODO: Needs node validation.
+ */
+function _nativePortalGetVideoInformationBlock($videoNodeObject) {
+
+	// Determine Capture Date
+	$dateOfCaptureHtml=$videoNodeObject->field_dateofcapture[0]['value'];
+	if ($dateOfCaptureHtml=='') { $dateOfCaptureHtml='Unknown'; }
+
+	// Determine Run Time
+	if ($videoNodeObject->field_videolength[0]['value'] > 0) {
+		$mins = floor ($videoNodeObject->field_videolength[0]['value'] / 60);
+		$secs = $videoNodeObject->field_videolength[0]['value'] % 60;
+		$runtimeString="$mins"."m $secs"."s";
+	} else {
+		$runtimeString='Unknown';
+	}
+
+	// Generate list of location taxonomy terms.
+	$locationTerms = taxonomy_node_get_terms_by_vocabulary($videoNodeObject,2);
+	$locationTermsHtml='';
+	foreach($locationTerms as $locationTerm){
+		$locationTermsHtml.=l($locationTerm->name,'taxonomy/term/'.$locationTerm->tid).', ';
+	}
+	$locationTermsHtml=substr($locationTermsHtml,0,-2);
+	if ($locationTermsHtml=='') { $locationTermsHtml='Unknown'; }
+
+	// Generate list of 'people in video' taxonomy terms.
+	$peopleList = taxonomy_node_get_terms_by_vocabulary($videoNodeObject,3);
+	$peopleListHtml='';
+	foreach($peopleList as $currentPerson){
+		$peopleListHtml.=l($currentPerson->name,'taxonomy/term/'.$currentPerson->tid).', ';
+	}
+	$peopleListHtml=substr($peopleListHtml,0,-2);
+	if ($peopleListHtml=='') { $peopleListHtml='None Identified'; }
+
+	// Generate list of topics discussed in video taxonomy terms.
+	$topicList = taxonomy_node_get_terms_by_vocabulary($videoNodeObject,4);
+	$topicListHtml='';
+	foreach($topicList as $currentTopic){
+		$topicListHtml.=l($currentTopic->name,'taxonomy/term/'.$currentTopic->tid).', ';
+	}
+	$topicListHtml=substr($topicListHtml,0,-2);
+	if ($topicListHtml=='') { $topicListHtml='None Defined'; }
+
+	$videoInfoForm['videoInformationBlockContainer'] = array(
+		'#type' => 'markup',
+		'#prefix' => '<div class="videoInformationBlockContainer">',
+		'#suffix' => '</div>',
+		'#weight' => -10,
+	);
+	
+	
+	$videoInfoForm['videoInformationBlockContainer']['title'] = array(
+		'#type' => 'markup',
+		'#prefix' => '<h2>',
+		'#value' => t('Video Information:'),
+		'#suffix' => '</h2>',
+		'#weight' => -9,
+	);
+
+	$videoInfoForm['videoInformationBlockContainer']['videoInformationDateOfCapture'] = array(
+		'#type' => 'markup',
+		'#prefix' => '<div class="videoInformationDateOfCapture">',
+		'#value' => t("Capture Date : $dateOfCaptureHtml"),
+		'#suffix' => '</div>',
+		'#weight' => -8,
+	);
+
+	$videoInfoForm['videoInformationBlockContainer']['videoInformationRunTime'] = array(
+		'#type' => 'markup',
+		'#prefix' => '<div class="videoInformationRunTime">',
+		'#value' => t("Video Length : $runtimeString"),
+		'#suffix' => '</div>',
+		'#weight' => -7,
+	);
+
+	$videoInfoForm['videoInformationBlockContainer']['videoInformationSpeakers'] = array(
+		'#type' => 'markup',
+		'#prefix' => '<div class="videoInformationSpeakers">',
+		'#value' => t("People in Video : $speakerListHtml"),
+		'#suffix' => '</div>',
+		'#weight' => -6,
+	);
+
+	$videoInfoForm['videoInformationBlockContainer']['videoInformationTopics'] = array(
+		'#type' => 'markup',
+		'#prefix' => '<div class="videoInformationTopics">',
+		'#value' => t("Topics Discussed: $topicListHtml"),
+		'#suffix' => '</div>',
+		'#weight' => -5,
+	);
+
+	return(drupal_render($videoInfoForm));
+
+}
+
+
+/*
+ * _nativePortalGetVideoCaptionTable ($generatingNID,$captionArray,$classOfParentDiv='',$weightToUse=0,$includeDeleteLink=0,$addClassForNativeTD='')
+ * Generates FAPI form element containing table of video captions for display on pages.
+ * 
+ * $generatingNID : INT of Node ID to render the captions for.
+ * $captionArray : ARRAY of captions from node - 'nativeportal_captiondataset' structure.
+ * $classOfParentDiv : STR Class to use as parent DIV when rendering.
+ * $weightToUse : STR Weight to use in returned form element.
+ * $includeDeleteLink : BOOL if 'Delete' link should be rendered with table. Only called from "manage captions"
+ * $addClassForNativeTD : STR to use as class in native TD elements.
+ * 
+ * TODO: Needs validation.
+ */
+function _nativePortalGetVideoCaptionTable ($generatingNID,$captionArray,$classOfParentDiv='',$weightToUse=0,$includeDeleteLink=0,$addClassForNativeTD='') {
+
+		// If captions exist, Sort captions array for order.
+		if (_nativePortalCaptionsExist($captionArray)) {
+			_nativePortalSortRawCaptions($captionArray);
+		}
+
+		// Init arrays for table.
+		$captionsTableHeaderColumns=array();
+		$captionsTableDataRows=array();
+
+		// Set table header strings.
+		$captionsTableHeaderColumns=array('Start Time','End Time','English Phrase','Native Phrase');
+		
+		if ($includeDeleteLink == 1) { $captionsTableHeaderColumns[]='Delete'; }
+		
+		$divIdToUse=1;
+
+		// Iterate
+		// If captions exist!.
+		if (_nativePortalCaptionsExist($captionArray)>0) {
+			foreach ($captionArray as $curCapKey => $curCapLine) {
+
+				$startTimeMaskFromSeconds=_nativePortalFormatSubripTimeFromSeconds($curCapLine['start_time'],0);
+				$endTimeMaskFromSeconds=_nativePortalFormatSubripTimeFromSeconds($curCapLine['end_time'],0);
+
+				$captionsTableDataRows[]=array(
+							'data' =>	array (
+									array(
+										'data' => $startTimeMaskFromSeconds,
+										'class' => 'timeJumper',
+										'onclick' => 'nativePortalJumpToTimeInVideo("'.$curCapLine['start_time'].'");',
+									),
+									array(
+										'data' => $endTimeMaskFromSeconds,
+										'class' => 'timeJumper',
+										'onclick' => 'nativePortalJumpToTimeInVideo("'.$curCapLine['end_time'].'");',
+									),
+									array(
+										'data' => $curCapLine['english_phrase'],
+										'class' => 'captionEnglishPhraseCell',
+									),
+									array(
+										'data' => $curCapLine['native_phrase'],
+										'class' => 'captionNativePhraseCell' . ' '.$addClassForNativeTD,
+									),
+								),
+					'class' => 'captionElementRow',
+					'id' => 'captionLine'.$divIdToUse,
+				);
+
+				if ($includeDeleteLink == 1) {
+					$captionsTableDataRows[count($captionsTableDataRows)-1]['data'][]=array(
+						'data' => "Delete",
+						'class' => 'deleteCaptionRow',
+						'onclick' => 'nativePortalDeleteCaptionRow("'.$generatingNID.'","'.$curCapKey.'");',
+					);
+				}
+				
+				$divIdToUse++;
+			}
+		}
+
+	// Return the form element.
+	return array(
+			'#type' => 'markup',
+			'#prefix' => '<div class="'.$classOfParentDiv.'">',
+			'#suffix' => '</div>',
+			'#value' => theme_table($captionsTableHeaderColumns, $captionsTableDataRows,array(
+					'class' => 'captionDisplayTable',
+				)
+			),
+			'#weight' => $weightToUse,
+	);
+
+}
+
+
+/*
+ * _nativePortalGetCleanEntryDefinitionBlock ()
+ * Generates clean dictionary entry HTML to use in tabs on video page, etc.
+ * 
+ * arg(2) : INT Drupal NID to pull data from.
+ * 
+ * TODO: Needs validation.
+ */
+function _nativePortalGetCleanEntryDefinitionBlock () {
+
+	$entryNodeObject=node_load(arg(2));
+
+	// Start building the block.
+	$cleanEntryDefinitionForm=array();
+
+	$cleanEntryDefinitionForm['cleanEntryDefinitionForTabs'] = array(
+			'#type' => 'markup',
+			'#prefix' => '<div class="cleanEntryDefinitionForTabs">',
+			'#suffix' => '</div>',
+			'#weight' => 0,
+	);
+
+	$cleanEntryDefinitionForm['cleanEntryDefinitionForTabs']['entryHeader'] = array(
+			'#type' => 'markup',
+			'#prefix' => '<h1>',
+			'#suffix' => '</h1>',
+			'#value' => l($entryNodeObject->title,'node/'.$entryNodeObject->nid),
+			'#weight' => 0,
+	);
+
+	$cleanEntryDefinitionForm['cleanEntryDefinitionForTabs']['nodePOSForTabs'] = array(
+			'#type' => 'markup',
+			'#prefix' => '<div class="nodePOSForTabs">',
+			'#suffix' => '</div>',
+			'#value' => $entryNodeObject->field_partofspeech[0]['value'],
+			'#weight' => 1,
+	);
+
+	$cleanEntryDefinitionForm['cleanEntryDefinitionForTabs']['nodeDefinitionForTabs'] = array(
+			'#type' => 'markup',
+			'#prefix' => '<div class="nodeDefinitionForTabs">',
+			'#suffix' => '</div>',
+			'#value' => $entryNodeObject->field_entrydefinition[0]['value'],
+			'#weight' => 2,
+	);
+
+	$cleanEntryDefinitionForm['cleanEntryDefinitionForTabs']['titleForNodeDefinition'] = array(
+			'#type' => 'markup',
+			'#prefix' => '<h3>',
+			'#suffix' => '</h3>',
+			'#value' => t('Example Use:'),
+			'#weight' => 3,
+	);
+
+	$cleanEntryDefinitionForm['cleanEntryDefinitionForTabs']['exampleUseTable'] =_nativePortalGetExampleUsageTableFormElement($entryNodeObject,4);
+
+	print drupal_render($cleanEntryDefinitionForm);
+
+}
+
+
+/*
+ * _nativePortalDisplayVideoCaptionsJavascript ($nid)
+ * Generates and returns the javascript necessary to do Ajax-y things with the captions
+ * while the video is playing
+ * 
+ * $nid : INT Drupal NID of type 'video' to load and use.
+ * 
+ * TODO : Needs tidying
+ */
+function _nativePortalDisplayVideoCaptionsJavascript ($nid) {
+
+	$javaScriptToReturn='';
+	$captionNodeObject=node_load($nid);
+
+	// See if captions exist and we need to do this. 
+	if (_nativePortalCaptionsExist($node->field_captionsdata)) {
+
+		// Sort first!
+		_nativePortalSortRawCaptions(&$captionNodeObject->field_captionsdata);
+
+		$numberOfCaptionElements=count($captionNodeObject->field_captionsdata);
+		$topCaptionElementKey=$numberOfCaptionElements-1;
+
+		$topCaptionElementCutoff=$captionNodeObject->field_captionsdata[$topCaptionElementKey]['start_time']+5;
+		$curRowID=$numberOfCaptionElements;
+
+		$javaScriptToReturn=<<<EOT
+		var time = null;
+		function timeMonitor(obj) {
+			colortouse = '#eedd82';
+			time = obj.position;
+			if (time>$topCaptionElementCutoff) {
+				setupHighlights($numberOfCaptionElements,0,colortouse);
+			}
+EOT;
+
+		$arrayOfTimes=array();
+		$arrayOfTimes=array_reverse($captionNodeObject->field_captionsdata);
+
+		foreach($arrayOfTimes as $timeKeyValue => $curTimeValue) {
+			$javaScriptToReturn.=<<<EOT
+	 else if (time>{$curTimeValue['start_time']}$endTimeAndStatement) {
+				setupHighlights($numberOfCaptionElements,$curRowID,colortouse);
+			}
+EOT;
+			$curRowID--;
+		}
+
+
+			$javaScriptToReturn.=<<<EOT
+		}
+	
+EOT;
+
+	}
+
+	return($javaScriptToReturn);
+
+}
+
+
+/*
+ * _nativePortalGetVideoCaptionFile()
+ * Callback function used in video/captions/%
+ * 
+ * arg(2) passes INT Drupal NID to load.
+ * 
+ * Generate a captions file from the CCK datatypes stored in node
+ * SRT or JSON
+ * 
+ * TODO: This should be tidied up, since we're doing some of the same things in each case.
+ */
+function _nativePortalGetVideoCaptionFile() {
+
+	if (stristr(arg(2),'.srt')) {
+
+		$nodeToUse=node_load(str_replace('.srt','',arg(2)));
+
+		//if we have any captions
+		if (_nativePortalCaptionsExist($nodeToUse->field_captionsdata)) {
+
+			// Byref functions that sort and link up the captions.
+			_nativePortalSortRawCaptions($nodeToUse->field_captionsdata);
+			_nativePortalGenerateLinkedCaptions($nodeToUse->field_captionsdata,$nodeToUse->field_captionslinks);
+
+			//Inits.
+			$captionLineCounter=1;
+			$captionStringToReturn='';
+
+			foreach ($nodeToUse->field_captionsdata as $curSubTitle) {
+				$captionLineStart=_nativePortalFormatSubripTimeFromSeconds($curSubTitle['start_time']);
+				$captionLineEnd=_nativePortalFormatSubripTimeFromSeconds($curSubTitle['end_time']);
+
+				$captionStringToReturn.=<<<EOT
+$captionLineCounter
+$captionLineStart --> $captionLineEnd
+<i>{$curSubTitle['english_phrase']}</i>
+{$curSubTitle['native_phrase']}
+
+
+EOT;
+				$captionLineCounter++;
+			}
+
+		}
+	} elseif (stristr(arg(2),'.json')) {
+
+		drupal_set_header('Content-Type: text/javascript; charset=utf-8');
+		$nodeToUse=node_load(str_replace('.json','',arg(2)));
+
+		if (_nativePortalCaptionsExist($nodeToUse->field_captionsdata)) {
+
+			// Byref functions that sort and link up the captions.
+			_nativePortalSortRawCaptions($nodeToUse->field_captionsdata);
+			_nativePortalGenerateLinkedCaptions($nodeToUse->field_captionsdata,$nodeToUse->field_captionslinks,arg(3));
+
+			$captionStringToReturn=drupal_to_js($nodeToUse->field_captionsdata,TRUE);
+		}
+	} else {
+		$captionStringToReturn="No Matching Format Found";
+	}
+
+	print $captionStringToReturn;
+}
+
+
+/*
+ * _nativePortalFormatSubripTimeFromSeconds($secondsval,$useMilliSeconds=1)
+ * 
+ * $secondsval : FLOAT of seconds value you with to format in subrip time format.
+ * $useMilliSeconds : INT 1/0 switch that controls the addition of milliseconds to the string returned.
+ * 
+ * Format time from seconds into subrip-compatible format.
+ */
+function _nativePortalFormatSubripTimeFromSeconds($secondsval,$useMilliSeconds=1) {
+	$returnTimeString='';
+	$dateMask="H:i:s";
+	if ($useMilliSeconds==1) { $dateMask.=',u'; }
+	$returnTimeString=gmdate($dateMask, $secondsval);
+	return($returnTimeString);
+}
+
+
+/*
+ * _nativePortalGenerateLinkedCaptions(&$captionsArray,&$nodeLinkArray,$jqueryFunctionToLinkWith='addEntryTab')
+ * Stuffs links from builder array into captions array. Both byref so does not return a value. 
+ * 
+ * $captionsArray : ARRAY of captions from node - 'nativeportal_captiondataset' structure.
+ * $nodeLinkArray : ARRAY of caption link pairs from node - 'nativeportal_captionlinkpair' structure.
+ * $jqueryFunctionToLinkWith : STR of jQuery function name to inject into links.
+ * 
+ * TODO : I've made a pretty big assumption about needs here:
+ * Despite doing 'greedy' matching to tidy up and link multi-word matches first, this function should NOT link
+ * words that occur within a larger word. i.e. 'hat' will never match in 'hats'. Regexp shoudl handle this.
+ */
+function _nativePortalGenerateLinkedCaptions(&$captionsArray,&$nodeLinkArray,$jqueryFunctionToLinkWith='addEntryTab') {
+
+	// Get the maximum number of words we will need to look for in each caption.
+	$maxWordLength=_nativePortalGetMaxWordCountInLinkWords($nodeLinkArray);
+
+	if ($maxWordLength!=1) {
+		// if thre is greater than one word replaces in the array, things are now more complicated.
+		// We need to sort the replaces from longer to shorter - so that iterating through them will
+		// not double replace things.
+
+		// OLD WAY : cull out replaces that were subsets of larger order ones. This only works if the
+		// higher order one is always present in every caption line. Not cool, manno.
+		_nativePortalSortReplacesByLength($nodeLinkArray);
+	}
+
+	// Start iterating over all caption lines. 
+	foreach ($captionsArray as $keyValue=>$curCaptionSet) {
+		foreach ($nodeLinkArray as $curNodeLink) {
+			if (trim($curNodeLink['link_phrase'])!='' &&  trim($curNodeLink['target_node'])!='' ) {
+				_nativePortalStuffLinkIntoCaption($captionsArray[$keyValue]['native_phrase'],$curNodeLink['link_phrase'],$curNodeLink['target_node'],$jqueryFunctionToLinkWith);
+			}
+		}
+	}
+}
+
+
+/*
+ * _nativePortalGetMaxWordCountInLinkWords($nodeLinkArray)
+ * Returns INT : the maximum number of words in the entire array ['string'] values.
+ * 
+ * $nodeLinkArray : ARRAY of caption link pairs from node - 'nativeportal_captionlinkpair' structure.
+ */
+function _nativePortalGetMaxWordCountInLinkWords($nodeLinkArray) {
+	$maxWordLength=0;
+	foreach ($nodeLinkArray as $curNodeLink) {
+		if ( str_word_count($curNodeLink['link_phrase']) > $maxWordLength ) {
+			$maxWordLength=str_word_count($curNodeLink['link_phrase']);
+		}
+	}
+	return($maxWordLength);
+}
+
+
+/*
+ * _nativePortalGetSubsetsOfCaption($captionString,$maxWordLength)
+ * 
+ * Generate all possible combinations of this caption with restrictions:
+ * 1) Maximum number of items combined set as $maxWordLength
+ * 2) Items combined must be adjecent in array.
+ * 
+ * $captionString : STRING of caption phrase to break down.
+ * $maxWordLength : INT Max subset length value.
+ * 
+ * This whole process is complicated by the fact that we cannot assume that punctuation
+ * is not part of words. Passamaquoddy/Maliseet uses apostraphe. Future languages may use more.
+ * 
+ * ** DEPRECATED But keeping : may be necessary in future**
+ */
+function _nativePortalGetSubsetsOfCaption($captionString,$maxWordLength) {
+
+	// Subset return array
+	$subsetsToReturn=array();
+	$maxWordLength=3;
+	
+	// Sanitize string of known 'safe to remove' punctuations values.
+	$captionString=preg_replace( "/\W+$/", "", $captionString );
+
+	// Split it into word values.
+	$arrayOfWordsInString=split(" ",$captionString);
+	
+	// Get number of words we're workign with
+	$numWordsInString=count($arrayOfWordsInString);
+
+	// Iterate over all array values
+	foreach ($arrayOfWordsInString as $keyOfCurrentWord => $currentWord) {
+
+		$subSetContainer='';
+		for($wordIndexInterator=$keyOfCurrentWord; $wordIndexInterator<($keyOfCurrentWord+$maxWordLength) && $wordIndexInterator<$numWordsInString; $wordIndexInterator++) {
+			$subSetContainer.=' '.$arrayOfWordsInString[$wordIndexInterator];
+			$subsetsToReturn[]=$subSetContainer;
+		}
+
+	}
+
+	return ($subsetsToReturn);
+}
+
+
+/*
+ * _nativePortalSortReplacesByLength(&$arrayOfReplaces)
+ * Sorts custom 'caption replaces' array by string length.
+ * 
+ * $arrayOfReplaces : ARRAY containing $arr[n]['link_phrase'] subelements
+ */
+function _nativePortalSortReplacesByLength(&$arrayOfReplaces) {
+	usort($arrayOfReplaces,'_nativePortalLengthSortValue');
+}
+
+
+/*
+ * _nativePortalLengthSortValue($a,$b)
+ * Callback custom sorter used in _nativePortalSortReplacesByLength()
+ * 
+ * $a : ARRAY ELEMENT 1
+ * $b : ARRAY ELEMENT 2
+ * 
+ */
+function _nativePortalLengthSortValue($a,$b){
+		return strlen($b['link_phrase'])-strlen($a['link_phrase']);
+}
+
+
+/*
+ * _nativePortalStuffLinkIntoCaption(&$textToLink,$wordToLink,$nodeToLink,$jqueryFunctionToLinkWith){
+ * General link stuffer for captions. Adds javascript to open new tab below video
+ * window. NOTE: LINK FORMATTING DONE HERE.
+ * 
+ * $textToLink : STRING of text that contains the entire caption sentence.
+ * $wordToLink : STRING of text containing the word we're searching for
+ * $nodeToLink : INT of Drupal node ID that we wish to link to.
+ * $jqueryFunctionToLinkWith : STR of jquery function to link to.
+ * 
+ * TODO : The ^\S* regexp below was supposed to prevent replacing already-replaced
+ * strings (as they will be wrapped by >< or ''). It doesn't - is \W or \w more suitable?
+ */
+function _nativePortalStuffLinkIntoCaption(&$textToLink,$wordToLink,$nodeToLink,$jqueryFunctionToLinkWith){
+	$textToLink=preg_replace('/([^\S]*)('.$wordToLink.')([^\S]*)/i','$1<a href="'."javascript:$jqueryFunctionToLinkWith(".strtolower($nodeToLink).",'$2','mod')".'"><u>$2</u></a>$3',$textToLink);
+}
+
+
+/*
+ * _nativePortalGetVideoPlayerHTML($node,$startAtTime='')
+ * Generate object HTML block for player.
+ * 
+ * $node : OBJ Drupal node object to parse for video.
+ * $startAtTime : Time to start video at. 
+ * 
+ * $startAtTime This does NOT work in the current implementation of JW player, but will soon.
+ * Once it does, specifying it will autostart videos.
+ */
+function _nativePortalGetVideoPlayerHTML($node,$startAtTime='') {
+
+	// Various flash vars for player object. 
+	$flash_vars = array(
+		'controlbar' => 'bottom',
+		'stretching' => 'uniform',
+		'dock' => false,
+		'autostart' => false,
+		'height' => '450',
+		'width' => '600',
+		'file' => base_path().$node->field_videofile[0]['filepath'],
+		'volume' => '80',
+		'screencolor' => '000000',
+		'showicons' => false,
+		'mute' => false,
+		'stretching' => 'uniform',
+	);
+
+	// Did a request come in to start at a specific time?
+	if ($startAtTime) {
+		$flash_vars['start']=$startAtTime;
+		$flash_vars['autostart']=true;
+	}
+
+	// Have we found some caption data?
+	if (_nativePortalCaptionsExist($node->field_captionsdata)) {
+			// TODO: Hacked captions plugin for now. This can go away someday as release uses link clicking.
+			$flash_vars['plugins']='http://etcdev.hil.unb.ca/~jsanford/passadrupal/sites/default/modules/jwplayermodule/captions.swf';
+			$flash_vars['captions.file']='http://etcdev.hil.unb.ca'.base_path().'?q=video/captions/'.$node->nid.'.srt';
+			$flash_vars['captions.enabled']=true;
+			$flash_vars['captions.back']=false;
+	}
+
+	return($playerHtml = theme("jwplayermodule_render_player", "NativeVideoPlayer", $flash_vars));
+}
+
+
+/*
+ * _nativePortalSortRawCaptions(&$captionsArray)
+ * Sort the captions element by start time before display!
+ * 
+ * $captionsArray : ARRAY of captions from node - 'nativeportal_captiondataset' structure.
+ * 
+ */
+function _nativePortalSortRawCaptions(&$captionsArray) {
+	usort($captionsArray,'_nativePortalStartTimeSortValue');
+	return(TRUE);
+}
+
+
+/*
+ * _nativePortalStartTimeSortValue($a,$b)
+ * Callback comparator used in _nativePortalSortRawCaptions()
+ * 
+ * $a : ARRAY ELEMENT 1
+ * $b : ARRAY ELEMENT 2
+ * 
+ */
+function _nativePortalStartTimeSortValue($a,$b){
+		return ($a['start_time']-$b['start_time']);
+}
+
+
+/*
+ * _generateLinkedSortedCaptionsArrayTableFormElement($generatingNID,$captionsArray,$captionsLinks,$htmlTableClass='',$jqueryFunctionToLinkWith='addEntryTab',$weightToUse=0,$includeDeleteLink=0,$addClassForNativeTD='')
+ * Sorts then generates a FAPI form element containing table of video captions for display on pages.
+ * 
+ * $generatingNID : INT NID of video node to render captions from.
+ * $captionsArray : ARRAY of captions from node - 'nativeportal_captiondataset' structure.
+ * $captionsLinks : ARRAY of caption link pairs from node - 'nativeportal_captionlinkpair' structure.
+ * $htmlTableClass : STR of classname to apply to table element.
+ * $jqueryFunctionToLinkWith : STR of jQuery function to stuff into links.
+ * $weightToUse : INT weight to apply to FAPI form element returned.
+ * $includeDeleteLink : BOOL Include 'delete' column when generating table? 
+ * $addClassForNativeTD : STR of class to apply to Native Phrase TD elements. 
+ * 
+ */
+function _generateLinkedSortedCaptionsArrayTableFormElement($generatingNID,$captionsArray,$captionsLinks,$htmlTableClass='',$jqueryFunctionToLinkWith='addEntryTab',$weightToUse=0,$includeDeleteLink=0,$addClassForNativeTD='') {
+
+	// No captions = no sorting.
+	if (_nativePortalCaptionsExist($captionsArray)) {
+		_nativePortalSortRawCaptions($captionsArray);
+		_nativePortalGenerateLinkedCaptions($captionsArray,$captionsLinks,$jqueryFunctionToLinkWith);
+	}
+
+	return(_nativePortalGetVideoCaptionTable($generatingNID,$captionsArray,$htmlTableClass,$weightToUse,$includeDeleteLink,$addClassForNativeTD));
+}
+
+
+/*
+ * _generateFormForLinkEntry(&$form,$nid)
+ * Generates form that pops up and allows entry of new caption links.
+ * 
+ * $form : byref FAPI array to insert new form into.
+ * $nid : INT of video node we wish to generate into.
+ */
+function _generateFormForLinkEntry(&$form,$nid) {
+
+	$form['addLinkDialog'] = array(
+		'#type' => 'markup',
+		'#prefix' => '<div id="addLinkDialog" title="Add Link to Captions" style="display:none;">',
+		'#suffix' => '</div>',
+		'#weight' => 0,
+	);
+
+	$form['addLinkDialog']['dialogTextToLink'] = array(
+		'#type' => 'textfield',
+		'#title' => t('Text To Link'),
+		'#maxlength' => 128,
+		'#size' => 40,
+		'#default_value' => '', 
+		'#attributes' => array('class' => 'dialogTextToLink'),
+		'#weight' => 0,
+	);
+
+	$form['addLinkDialog']['dialogNodeToReference'] = array(
+		'#type' => 'textfield',
+		'#title' => t('Dictionary Entry To Reference'),
+		'#maxlength' => 128,
+		'#size' => 30,
+		'#default_value' => '', 
+		'#autocomplete_path' => 'video/nodeTitleAutocomplete',
+		'#attributes' => array('class' => 'dialogNodeToReference'),
+		'#weight' => 1,
+	);
+
+	$form['addLinkDialog']['updateCaptionLinkButton'] = array(
+		'#type' => 'button',
+		'#value' => t('Update Link Element'), 
+		'#attributes' => array('onclick' => 'manageCaptionLink("add","'.$nid.'","addLinkDialog"); return false;'),
+		'#weight' => 2,
+	);
+
+}
+
+
+/*
+ * _generateFormForLinkModification(&$form,$nid)
+ * Generates form that pops up and allows modification of caption links.
+ * 
+ * $form : byref FAPI array to insert new form into.
+ * $nid : INT of video node we wish to generate into.
+ * 
+ * TODO: this could be folded into _generateFormForLinkEntry with an op.
+ */
+function _generateFormForLinkModification(&$form,$nid) {
+
+	$form['modifyCaptionLinkDialog'] = array(
+		'#type' => 'markup',
+		'#prefix' => '<div id="modLinkDialog" title="Edit Caption Link" style="display:none;">',
+		'#suffix' => '</div>',
+		'#size' => 45,
+		'#weight' => 0,
+	);
+
+	$form['modifyCaptionLinkDialog']['dialogTextToLink'] = array(
+		'#type' => 'textfield',
+		'#title' => t('Text To Link'),
+		'#maxlength' => 128,
+		'#size' => 40,
+		'#default_value' => '', 
+		'#attributes' => array('class' => 'dialogTextToLink'),
+		'#weight' => 0,
+	);
+
+	$form['modifyCaptionLinkDialog']['dialogNodeToReference'] = array(
+		'#type' => 'textfield',
+		'#title' => t('Dictionary Entry To Reference'),
+		'#maxlength' => 128,
+		'#size' => 30,
+		'#default_value' => '', 
+		'#autocomplete_path' => 'video/nodeTitleAutocomplete',
+		'#attributes' => array('class' => 'dialogNodeToReference'),
+		'#weight' => 1,
+	);
+
+
+	$form['modifyCaptionLinkDialog']['deleteCaptionLinkButton'] = array(
+		'#type' => 'button',
+		'#size' => 20,
+		'#value' => t('Delete Link'), 
+		'#attributes' => array('onclick' => 'manageCaptionLink("del","'.$nid.'","modLinkDialog"); return false;'),
+		'#weight' => 3,
+	);
+
+}
+
+
+/*
+ * _nativePortalGetExampleUsageTableFormElement ($node,$weightToUse)
+ * Generate the FAPI form element necessary to render a table of example usage.
+ * 
+ * $node : OBJ of node to generate from.
+ * $weightToUse : INT of weight to apply to new element.
+ */
+function _nativePortalGetExampleUsageTableFormElement ($node,$weightToUse) {
+
+	if (count($node->field_phrasepairexample)>0) {
+
+		$exampleTableHeaderRows=array(
+			'Native Representation',
+			'English Representation',
+		);
+
+		$exampleTableDataRows=array();
+
+		// Iterate
+		foreach ($node->field_phrasepairexample as $curPhrasePair) {
+			$exampleTableDataRows[]=array(
+				'data' =>	array (
+								array(
+									'data' => $curPhrasePair['native_phrase'],
+									'class' => 'nativeexamplephrase',
+								),
+								array(
+									'data' => $curPhrasePair['english_phrase'],
+									'class' => 'englishexamplephrase',
+								),
+							),
+				'class' => 'singleexamplerow',
+			);
+		}
+	}
+
+	return array(
+			'#type' => 'markup',
+			'#prefix' => '<div class="examplePhraseUsageTableContainer">',
+			'#suffix' => '</div>',
+			'#value' => theme_table($exampleTableHeaderRows, $exampleTableDataRows),
+			'#weight' => $weightToUse,
+	);
+
+}
+
+
+/*
+ * _nativePortalGetAddCaptionLineFormElement(&$form,$nid)
+ * Generate the form elements that allow entry of new captions into a video node.
+ * 
+ * $form : Byref FAPI OBJ to insert new elements into.
+ * $nid : INT node id of the target video node.
+ */
+function _nativePortalGetAddCaptionLineFormElement(&$form,$nid) {
+	
+	$form['manageCaptionsTabset']['manageCaptionEntries']['captionElementAddContainer'] = array(
+		'#type' => 'markup',
+		'#prefix' => '<div class="captionElementAddContainer">',
+		'#suffix' => '</div>',
+		'#weight' => 0,
+	);
+
+	$form['manageCaptionsTabset']['manageCaptionEntries']['captionElementAddContainer']['titleBlock'] = array(
+		'#type' => 'markup',
+		'#prefix' => '<h2>',
+		'#suffix' => '</h2>',
+		'#value' => 'Add Caption Element:',
+		'#weight' => 0,
+	);
+
+	$form['manageCaptionsTabset']['manageCaptionEntries']['captionElementAddContainer']['newEnglishPhrase'] = array(
+		'#type' => 'textfield',
+		'#title' => t('English Phrase'),
+		'#maxlength' => 128,
+		'#size' => 70,
+		'#default_value' => '', 
+		'#attributes' => array('class' => 'newEnglishPhrase'),
+		'#weight' => 1,
+	);
+
+	$form['manageCaptionsTabset']['manageCaptionEntries']['captionElementAddContainer']['newNativePhrase'] = array(
+		'#type' => 'textfield',
+		'#title' => t('Native Phrase'),
+		'#maxlength' => 128,
+		'#size' => 70,
+		'#default_value' => '', 
+		'#attributes' => array('class' => 'newNativePhrase'),
+		'#weight' => 2,
+	);
+
+	$form['manageCaptionsTabset']['manageCaptionEntries']['captionElementAddContainer']['newStartTime'] = array(
+		'#type' => 'textfield',
+		'#title' => t('Start Time'),
+		'#maxlength' => 128,
+		'#size' => 10,
+		'#default_value' => '00:00:00', 
+		'#attributes' => array('class' => 'newStartTime'),
+		'#weight' => 3,
+	);
+	
+	$form['manageCaptionsTabset']['manageCaptionEntries']['captionElementAddContainer']['newEndTime'] = array(
+		'#type' => 'textfield',
+		'#title' => t('End Time'),
+		'#maxlength' => 128,
+		'#size' => 10,
+		'#default_value' => '00:00:00', 
+		'#attributes' => array('class' => 'newEndTime'),
+		'#weight' => 4,
+	);
+
+	$form['manageCaptionsTabset']['manageCaptionEntries']['captionElementAddContainer']['addNewCaptionButton'] = array(
+		'#type' => 'button',
+		'#value' => t('Add Caption Element'), 
+		'#attributes' => array('onclick' => 'nativePortalAddCaptionLineToDatabase('.$nid.'); return false;'),
+		'#weight' => 5,
+	);
+}
+
+
+/*
+ * _nativePortalTidyCaptionLinks($nidValueToCheck,$deleteType)
+ * 
+ * Clean up caption links. 1) On dictionary node deletes, 2) Caption line in Video Node deletes
+ * we have to clean up the links table to make sure orphans don't stick around. Since the captions
+ * and links are stored as CCK values of the video node, they just go away with the video delete.
+ * 
+ * 1) The dictionary node being deleted isn't being referenced in any caption links.
+ * 2) We're not storing a link for words that are no longer in the captions.
+ * 
+ * $nodeObject : OBJ of node to be tidied.
+ * $deleteType : STR of tidy operation. Implemented : 'caption','dictionaryentry'
+ * 
+ * TODO : It would be nice to have a all-over tidy-up function here that we can crontab.
+ * Walk through nightly and clean up orphans in entire site. 
+ */
+function _nativePortalTidyCaptionLinks(&$nodeObject,$deleteType) {
+
+	switch ($deleteType) {
+
+		// Case where we are deleting a caption line.
+		case 'caption':
+			if (_nativePortalCaptionsExist($nodeObject->field_captionsdata)) {
+				// Ok, we have at least one REAL caption here. Above function checks for blanks too.
+
+				// There may be no links.
+				if (count($nodeObject->field_captionslinks) > 0) { 
+
+					foreach ($nodeObject->field_captionslinks as $curLinkKey => $curLinkData) {
+						// Reset the found switch for this link.
+						$foundInCaptions=FALSE;
+
+						// This could be a while loop somehow : i.e. stop if you find it on the first try.
+						foreach ($nodeObject->field_captionsdata as $curCaptionKey => $curCaption) {
+							// Case sensitive is more overhead here but I think acceptable.
+							if (stristr($curCaption[native_phrase],$curLinkData[link_phrase])) {
+								$foundInCaptions=TRUE;
+							}
+						}
+
+						if (!$foundInCaptions) {
+							watchdog('captions_tidy',"Deleting link to .. {$curLinkData['link_phrase']}");
+							unset($nodeObject->field_captionslinks[$curLinkKey]);
+						}
+					
+					}
+
+				}
+			} else {
+					// If we have no real captions at all, the links should all be deleted without checking.
+					watchdog('captions_tidy',"No captions found.. deleting all links. ".print_r($nodeObject,TRUE));
+
+					// ... if we have any.
+					if (count($nodeObject->field_captionslinks) > 0) { 
+						foreach ($nodeObject->field_captionslinks as $curLinkKey => $curLinkData) {
+							watchdog('captions_tidy',"Deleting link to .. {$curLinkData['link_phrase']}");
+							unset($nodeObject->field_captionslinks[$curLinkKey]);
+						}
+					}
+			}
+
+		break;
+
+		case 'dictionaryentry':
+			// Get list of video nodes that have this item linked to.
+			$arrayOfVideoNodesToDeleteFrom=_nativePortalGetVideosReferencingDictionaryEntry($nodeObject->nid);
+
+			if (count($arrayOfVideoNodesToDeleteFrom)>0) {
+				foreach ($arrayOfVideoNodesToDeleteFrom as $curVideoNID) {
+					$videoNodeObject=node_load($curVideoNID['nid']);
+
+					// Unnecessary check? We trust our data?
+					if (count($videoNodeObject->field_captionslinks)>0) {
+						foreach ($videoNodeObject->field_captionslinks as $curCaptionLinkKey => $curCaptionLinkData) {
+							if ($curCaptionLinkData['target_node'] == $nodeObject->nid) {
+								unset($videoNodeObject->field_captionslinks[$curCaptionLinkKey]);
+							}
+						}
+					}
+
+					// Save the node we just modified.
+					_nativePortalSaveNode('video_node_form',$videoNodeObject,$opToUse='Save');
+				}
+			}
+
+		break;
+	}
+}
+
+
+?>

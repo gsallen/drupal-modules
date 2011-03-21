@@ -1,0 +1,12 @@
+name = "Dictionary Entry Functions"
+description = "Manage and Display Native Language Dictionary Entries."
+version = "6.x-1.0"
+dependencies[] = content
+dependencies[] = nativeportal_examplephrasepair
+dependencies[] = nativeportal_nanogong
+dependencies[] = jquery_ui
+dependencies[] = views
+dependencies[] = nativeportal_coreoperations
+dependencies[] = tabs
+package = Native Language Portal
+core = 6.x

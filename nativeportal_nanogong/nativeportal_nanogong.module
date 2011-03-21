@@ -1,0 +1,213 @@
+<?php
+
+/*
+ * nativeportal_nanogong_init()
+ * Implementation of hook_init()
+ */
+function nativeportal_nanogong_init() {
+	drupal_add_js(drupal_get_path('module', 'nativeportal_nanogong'). '/js/nanogong.js');
+	drupal_add_css(drupal_get_path('module', 'nativeportal_nanogong'). '/css/nanogong.css');
+}
+
+
+/*
+ * nativeportal_nanogong_help($path, $arg)
+ * Implementation of hook_help()
+ */
+function nativeportal_nanogong_help($path, $arg) {
+	switch ($path) {
+		// Main module help for the block module
+		case 'admin/help#nanogong':
+		return '<p>' . t('Supports the simple !Nanogong audio recorder by providing an administrative interface and a theme for a CCK field to display it.',array('!Nanogong'=>l('Nanogong','http://gong.ust.hk/nanogong'))). '</p>';
+
+		// Help for another path in the block module
+		case 'admin/settings/nanogong':
+		return '<p>' . t('Supports the simple !Nanogong audio recorder by providing an administrative interface and a theme for a CCK field to display it. The settings below control the parameters to an &lt;applet&gt;, themed into the empty Nanogong CCK field, that calls the Nanogong jar file.',array('!Nanogong'=>l('Nanogong','http://gong.ust.hk/nanogong'))). '</p>';
+	}
+}
+
+
+/*
+ * nativeportal_nanogong_menu()
+ * Implementation of hook_menu()
+ */
+function nativeportal_nanogong_menu() {
+	// admin tab
+	$items['admin/settings/nanogong'] = array(
+		'title' => 'Audio Recording',
+		'access arguments'=>array('administer nanogong'),
+		'page callback'=>'drupal_get_form',
+		'page arguments'=>array('nanogong_settings'),
+		);
+	return $items;
+}
+
+
+/*
+ * nativeportal_nanogong_settings()
+ * Allows users to change nanogong settings throught administrative interface.
+ */
+function nativeportal_nanogong_settings() {
+
+	$form = array();
+	$default_option = variable_get('nanogong_recording_type','word');
+	$default_option = $default_option !== NULL ? $default_option : key($options);
+
+	if (count($options) > 0) {
+		$form['nanogong_recording_type'] = array(
+			'#type'=>'select',
+			'#title'=>t('Select default recording type'),
+			'#default_value'=>$default_option,
+			'#options'=> array(
+				'Word Pronounciation' => 'Word Pronounciation',
+				'Phrase Pronounciation' => 'Phrase Pronounciation'
+			),
+			'#description'=>t('The default recording type for recording. Can be changed on each individual page.'),
+		);
+	}
+
+	$form['nanogong_ShowRecordButton'] = array(
+		'#type'=>'radios',
+		'#title'=>'Show Record button',
+		'#default_value'=>variable_get('nanogong_ShowRecordButton', 'true'),
+		'#options'=>array(
+			'true'=>t('Show'),
+			'false'=>t('Hide'),
+		),
+		'#description'=>t('Show or hide the Record button.'),
+	);
+
+	$form['nanogong_ShowSaveButton'] = array(
+		'#type'=>'radios',
+		'#title'=>'Save method',
+		'#default_value'=>variable_get('nanogong_ShowSaveButton', 'true'),
+		'#options'=>array(
+			'false'=>t('Save to local file system'),
+			'true'=>t('Store file on server'),
+		),
+		'#description'=>t('Save to local file system brings up a Save As dialog. If the nanogong_file CCK field is enabled, a file will be written to the server automatically using the values of the word, the speaker\'s UID, 0and the recording type to create the filename.'),
+	);
+
+	$form['nanogong_ShowSpeedButton'] = array(
+		'#type'=>'radios',
+		'#title'=>'Show Speed button',
+		'#default_value'=>variable_get('nanogong_ShowSpeedButton', 'true'),
+		'#options'=>array(
+			'true'=>t('Show'),
+			'false'=>t('Hide'),
+		),
+		'#description'=>t('Show or hide the Speed button.'),
+	);
+
+	$form['nanogong_ShowAudioLevel'] = array(
+		'#type'=>'radios',
+		'#title'=>'Show Audio level',
+		'#default_value'=>variable_get('nanogong_ShowAudioLevel', 'true'),
+		'#options'=>array(
+			'true'=>t('Show'),
+			'false'=>t('Hide'),
+		),
+		'#description'=>t('Show or hide the Audio level.'),
+	);
+
+	$form['nanogong_AudioFormat'] = array(
+		'#type'=>'select',
+		'#title'=>t('Audio format'),
+		'#default_value'=>variable_get('nanogong_AudioFormat', 'Speex'),
+		'#options'=> array(
+			'Speex'    => t('Speex (*.wav)'),
+			'ImaADPCM' => t('ImaADPCM'),
+		),
+		'#description'=>t('The codec used for sound encoding. Both use the *.wav extension.'),
+	);
+
+	if (variable_get('nanogong_AudioFormat', 'Speex') == 'Speex') {
+		$options = array('8000'=>'8,000','16000'=>'16,000','32000'=>'32,000','44100'=>'44,100');
+	} else {
+		$options = array('8000'=>'8,000','11025'=>'11,025','16000'=>'16,000','22050'=>'22,050','32000'=>'32,000','44100'=>'44,100');
+	}
+
+	$form['nanogong_SamplingRate'] = array(
+		'#type'=>'select',
+		'#title'=>t('Sampling rate'),
+		'#default_value'=>variable_get('nanogong_SamplingRate','44100'),
+		'#options'=> $options,
+		'#description'=>t('The sampling rate of the sound recording.'),
+	);
+
+	if (variable_get('nanogong_AudioFormat', 'Speex') == 'Speex') {
+		$form['nanogong_SpeexQuality'] = array(
+			'#type'=>'select',
+			'#title'=>t('Speex quality'),
+			'#default_value'=>variable_get('nanogong_SpeexQuality', 10),
+			'#options'=>drupal_map_assoc(array(1,2,3,4,5,6,7,8,9,10)),
+			'#description'=>t('Speex sound quality'),
+		);
+	}
+	return system_settings_form($form);
+}
+
+
+/*
+ * nanogong_get_extension()
+ * 
+ * Determines extension to use based on audio format type.
+ * 
+ * The NanoGong applet records and saves mono sound file in two
+ * types of audio format, Speex and IMA ADPCM.
+ *
+ * Speex is a very good audio compression scheme for speech.
+ * However, common audio player programs are usually not able to
+ * play voice recordings compressed using Speex. Nevertheless, any
+ * pre-recorded sound file using exactly this format can be played
+ * back using any NanoGong applet. Alternatively, you can install a
+ * Ogg DirectShow filter so that Speex files can be played back in
+ * Windows Media Player. The filter can be downloaded from xiph.org
+ * at http://www.xiph.org/dshow/.
+ *
+ * IMA ADPCM is an audio compression scheme which can be stored in
+ * the WAV file format. That means audio files created using IMA
+ * ADPCM can be played in the common audio player programs. However,
+ * the file produced by IMA ADPCM is not as compact as Speex with
+ * the same quality. The easiest way to create a sound file in the
+ * IMA ADPCM format is to use the NanoGong applet itself.
+ * Alternatively, you can use audio editing software to create it -
+ * see this FAQ.
+ *
+ * http://gong.ust.hk/nanogong/doc_faq.html#nanogong_format
+ * 
+ * TODO : JS : This is legacy from old Nanogong module. Remove? 
+ */
+function nanogong_get_extension() {
+	return 'wav';
+}
+
+
+/*
+ * _nativePortalGetNanogongAppletHTML($idToUse,$jarPath,$width,$height,$parametersToUse)
+ * Renders the nanogong applet in HTML with parameters passed.
+ * 
+ * $idToUse : STR of applet ID to use.
+ * $jarPath : STR Path to nanogong.jar
+ * $width : STR/INT of Width to render with.
+ * $height : STR/INT of Height to render with.
+ * $parametersToUse : Associative array of STR values with Parameter => Vaule pairs.
+ * 
+ */
+function _nativePortalGetNanogongAppletHTML($idToUse,$jarPath,$width,$height,$parametersToUse) {
+	
+	$appletHTML='<applet id="'.$idToUse.'" archive="'.$jarPath.'/nanogong.jar" code="gong.NanoGong" width="'.$width.'" height="'.$height.'">'."\n";
+	
+	if (count($parametersToUse) > 0) {
+		foreach ($parametersToUse as $curParameterName => $curParameterValue) {
+			$appletHTML.='<param name="'.$curParameterName.'" value="'.trim($curParameterValue).'" />'."\n";
+		}
+	}
+
+	$appletHTML.='</applet>'."\n";
+
+	return($appletHTML);
+}
+
+
+?>

@@ -1,0 +1,13 @@
+name = "Video Entry Functions"
+description = "Video Player Implementation for Native Language Dictionary Site"
+version = "6.x-1.0"
+package = Native Language Portal
+core = 6.x
+dependencies[] = content
+dependencies[] = nativeportal_captiondataset
+dependencies[] = nativeportal_captionlinkpair
+dependencies[] = jquery_ui
+dependencies[] = views
+dependencies[] = jwplayermodule
+dependencies[] = nativeportal_coreoperations
+dependencies[] = tabs

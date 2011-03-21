@@ -1,0 +1,335 @@
+<?php
+
+/*
+ * nativeportal_audioentryrecording_menu()
+ * implementation of hook_menu()
+ * 
+ * Set up our callback paths and menu tab items.
+ */
+function nativeportal_audioentryrecording_menu() {
+
+	$items['entry/nanogong_save_filename/%'] = array(
+		'page callback' => '_nativePortalSaveNanoGongFile',
+		'type' => MENU_CALLBACK,
+		'access arguments' => array('access content'),
+	);
+
+	$items['node/%node/audiorecordings']  = array(
+		'title' => 'Manage Audio Recordings',
+		'page callback' => 'drupal_get_form',
+		'page arguments' => array('_nativePortalManageAudioRecordingsForm'),
+		'access callback' => '_nativePortalAudioAccessRules',
+		'type' => MENU_LOCAL_TASK,
+		'weight' => 10,
+	);
+
+	return $items;
+}
+
+
+/*
+ * _nativePortalSaveNanoGongFile()
+ * Callback from menu item. This receives posts from the javascript recording widget when 'save'
+ * is engaged.
+ * 
+ * TODO: Validate! Validate! Validate!
+ */
+function _nativePortalSaveNanoGongFile() {
+
+	// Validate Node As Dictionary Type
+	$nodeToVerify=node_load(arg(2));
+	if ($nodeToVerify->type!='dictionaryentry') {
+		print "Not a Valid Dictionary Node";
+		return('');
+	}
+
+	// Validate User
+	global $user;
+	if (!$user->uid) {
+		print "Not Logged In As a User";
+		return('');
+	}
+
+	// TODO: (Feature) : Check if user has a file of this type uploaded already. If so, overwrite.
+	// jQuery prompt here would be nice as well. "Do you wish to overwrite"
+
+	// Use reporting apache provides. These can be forged, I'm sure. But why?
+	if ($_FILES['file']['error']==0 && $_FILES['file']['size']!='0') {
+
+		// Copy file to drupal structure location. ($_FILES['tmp_name'])
+		$fileNameToUse='native-recording_'.arg(2).'_'.$user->uid.'_'.strtolower(str_replace(' ','-',trim(arg(3)))).'_'.$_FILES['file']['name'];
+
+		// Below is the REAL Line to define the path, but homedir serving sometimes is funky. Uncomment on production.
+		// $baseFilePathToSaveFile=real_path('.').file_directory_path();
+		$baseFilePathToSaveFile='/home/jsanford/public_html/passa2/sites/default/files';
+
+		$fullFileTargetForUpload=$baseFilePathToSaveFile.'/'.$fileNameToUse;
+		copy($_FILES['file']['tmp_name'],$fullFileTargetForUpload);
+
+		// Build filepath and get size.
+		$mimeTypeToUse=$_FILES['file']['type'];
+
+		// Do we trust POST reporting? Nope.
+		$fileSizeToUse=filesize($_FILES['file']['tmp_name']);
+
+		// Define the new file object.
+		$fileToInsert = new stdClass();
+		$fileToInsert->filename = $fileNameToUse;
+		$fileToInsert->filepath = file_directory_path().'/'.$fileToInsert->filename;
+		$fileToInsert->filemime=$mimeTypeToUse;
+		$fileToInsert->filesize = $fileSizeToUse;
+		$fileToInsert->uid = $user->uid;
+
+		$fileToInsert->status = 'FILE_STATUS_PERMANENT';
+		$fileToInsert->timestamp = time();
+
+		// Write file to record, and this updates the object with a FID.
+		drupal_write_record('files', $fileToInsert);
+
+		// Define Node to Insert.
+		$nodeToInsert = new StdClass();
+		$nodeToInsert->type = 'nativespeakeraudio';
+		$nodeToInsert->body = '';
+		$nodeToInsert->title = $fileNameToUse;
+
+		// CCK Filefield For field_nativespeechaudiofile
+		$nodeToInsert->field_nativespeechaudiofile = array(
+			array(
+				'fid' => $fileToInsert->fid,
+				'title' => basename($fileToInsert->filename),
+				'filename' => $fileToInsert->filename,
+				'filepath' => $fileToInsert->filepath,
+				'filesize' => $fileToInsert->filesize,
+				'mimetype' => $mimeTypeToUse,
+				'data' => array(
+					'description' => basename($fileToInsert->filename),
+				),
+				'list' => 1,
+			),
+		);
+
+		// CCK Text for field_typeofrecording arg(4)
+		$nodeToInsert->field_typeofrecording = array(
+			array(
+				'value' => arg(3),
+			),
+		);
+
+		//  CCK INT for field_parentdictionaryentry
+		$nodeToInsert->field_parentdictionaryentry = array(
+			array(
+				'nid' => arg(2),
+			),
+		);
+
+		// Other required node items.
+		$nodeToInsert->uid = $user->uid;
+		$nodeToInsert->name = $user->name;
+		$nodeToInsert->status = 1;
+		$nodeToInsert->active = 1;
+		$nodeToInsert->promote = 1;
+
+		// Save The Node. I think we're done.
+		if (_nativePortalSaveNode('dictionaryentry_node_save',$nodeToInsert,'Save')) {
+			print "Audio Recording Successfully Saved";
+		} else {
+			print "Node Save Operation failed.";
+		}
+
+	} else {
+		print "File Upload Error";
+	}
+
+}
+
+
+/*
+ * _nativePortalGetNanogongRecordingWidget()
+ * Returns the nanogong widget in HTML format. 
+ * Function taken from universal pantograph module and modified.
+ * 
+ * $node : OBJ of parent dictionary entry node to parse widget for.
+ */
+function _nativePortalGetNanogongWidgetForRecording($node) {
+	global $user;
+
+	$uid=$user->uid;
+	$nid=$node->nid;
+	$extension = nanogong_get_extension();
+
+	$ShowRecordButton = variable_get('nanogong_ShowRecordButton', 'true');
+	$ShowSaveButton = variable_get('nanogong_ShowSaveButton', 'false');
+	$ShowSpeedButton = variable_get('nanogong_ShowSpeedButton', 'true');
+	$ShowAudioLevel = variable_get('nanogong_ShowAudioLevel', 'true');
+	$AudioFormat = variable_get('nanogong_AudioFormat', 'Speex');
+	$SamplingRate = variable_get('nanogong_SamplingRate', '44100');
+	$SpeexQuality = variable_get('nanogong_SpeexQuality', '10');
+
+	$recording_type = variable_get('nanogong_recording_type','word');
+	if ($recording_type == 'word') {
+		$word_selected = 'selected';
+		$example_selected = '';
+	}
+	else {
+		$word_selected = '';
+		$example_selected = 'selected';
+	}
+
+	// Start form here.
+	$recordingWidgetForm['nanogongWidget'] = array(
+			'#type' => 'markup',
+			'#prefix' => '<div id="nanogongContainer">',
+			'#suffix' => '</div>',
+			'#weight' => -10,
+	);
+
+	$recordingWidgetForm['nanogongWidget']['pickRecordingType']= array(
+			'#type' => 'select',
+			'#title' => t('Pick recording type'),
+			'#options' => array(
+				'word' 		=>	t('Word Being Spoken'), 
+				'example' 	=> 	t('Example Phrases Being Spoken'),
+			),
+			'#attributes' => array('id' => t('recording_type')),
+			'#prefix' => '<div id="recordingTypeContainer">',
+			'#suffix' => '</div>',
+			'#weight' => -9,
+	);
+
+	$recordingWidgetForm['nanogongWidget']['recordingBlock'] = array(
+			'#type' => 'markup',
+			'#prefix' => '<div id="nanogongContainer">',
+			'#value' => _nativePortalGetNanogongAppletHTML('nanogong',drupal_get_path('module', 'nativeportal_nanogong').'/nanogong','180','40',array(
+						'AudioFormat' => $AudioFormat,
+						'SamplingRate' => $SamplingRate,
+						'ShowAudioLevel' => $ShowAudioLevel,
+						'ShowRecordButton' => $ShowRecordButton,
+						'ShowSaveButton' => $ShowSaveButton,
+						'ShowSpeedButton' => $ShowSpeedButton,
+					)),
+			'#suffix' => '</div>',
+			'#weight' => -7,
+	);
+
+	$recordingWidgetForm['nanogongWidget']['saveButton'] = array(
+		'#type' => 'button',
+		'#value' => t('Save Recording'), 
+		'#attributes' => array('onclick' => "sendFile('nanogong','$extension','$nid'); return false;"),
+		'#weight' => 0,
+	);
+
+	return(drupal_render($recordingWidgetForm));
+}
+
+
+/*
+ * _nativePortalAudioAccessRules()
+ * Determine if the 'Manage Audio' tab should be shown on the node page.
+ * arg(1) : STR nid of calling node.
+ */
+function _nativePortalAudioAccessRules() {
+	$nodeToCheck=node_load(arg(1));
+	if ($nodeToCheck->type == 'dictionaryentry' && user_access('edit content')) {
+		return TRUE;
+	}
+	return FALSE;
+}
+
+
+/*
+ * _nativePortalManageAudioRecordingsForm()
+ * Return the unrendered form elements for managing audio recordings in a dictionary node. 
+ */
+function _nativePortalManageAudioRecordingsForm() {
+	
+	$nid = arg(1);
+	if(is_numeric($nid) && $nid > 0) {
+		$node = node_load($nid);
+
+		$form['nodeDef'] = array(
+			'#type' => 'markup',
+			'#prefix' => '<p>',
+			'#suffix' => '</p>',
+			'#value' => $node->field_entrydefinition[0]['value'],
+			'#weight' => -29,
+		);
+
+
+		$form['nodeExample'] = array(
+			'#type' => 'fieldset',
+			'#title' => t('Example Sentences'),
+			'#collapsible' => TRUE,
+			'#collapsed' => FALSE,
+			'#prefix' => '<div id="exampleSentenceWrapper">',
+			'#suffix' => '</div>',
+			'#weight' => -19,
+		);
+
+		$form['nodeExample']['sentenceTable']= array(
+			'#type' => 'markup',
+			'#value' => _nativePortalGetExamplePhraseTable($node),
+			'#weight' => -27,
+		);
+
+		$form['entryAudio'] = array(
+			'#type' => 'fieldset',
+			'#title' => t('Add New Recording'),
+			'#collapsible' => TRUE,
+			'#collapsed' => FALSE,
+			'#prefix' => '<div id="recordedAudioWrapper">',
+			'#suffix' => '</div>',
+			'#weight' => -18,
+		);
+
+		$form['entryAudio']['newAudioFile'] = array(
+			'#type' => 'markup',
+			'#value' => _nativePortalGetNanogongWidgetForRecording($node),
+			'#weight' => -20,
+		);
+
+		$form['previous'] = array(
+			'#type' => 'fieldset',
+			'#title' => t('Previously Recorded Audio Entries'),
+			'#collapsible' => TRUE,
+			'#collapsed' => FALSE,
+			'#prefix' => '<div id="previouslyRecordedAudioWrapper">',
+			'#suffix' => '</div>',
+			'#weight' => -17,
+		);
+		$form['previous']['audio'] = array(
+			'#type' => 'markup',
+			'#collapsible' => FALSE,
+			'#collapsed' => FALSE,
+			'#value' => views_embed_view('audioRecordingLister', 'block_2',$nid),
+			'#weight' => -17,
+		);
+
+		$form['navButtons'] = array(
+			'#type' => 'markup',
+			'#prefix' => '<div id="navButtonWrapper" style="text-align:center;">',
+			'#suffix' => '</div>',
+			'#weight' => 0,
+		);
+
+		$form['navButtons']['previousButton'] = array(
+			'#type' => 'submit',
+			'#value' => t('Previous Entry'),
+			'#weight' => 0,
+			'#name' => 'previousEntry',
+		);
+
+		$form['navButtons']['nextButton'] = array(
+			'#type' => 'submit',
+			'#value' => t('Next Entry'),
+			'#name' => 'nextEntry',
+			'#weight' => 1,
+		);
+
+		$form['#nid'] = $nid;
+		$form['#submit'][] = 'entry_admin_audio_submit';
+	}
+
+	return $form;
+}
+
+?>

@@ -1,0 +1,8 @@
+; $Id:$
+name = Nanogong
+description = Allows administrators to set parameters for the nanogong audio recorder.
+package = Native Language Portal
+dependencies[] = content
+dependencies[] = content_permissions
+dependencies[] = nativeportal_coreoperations
+core = 6.x

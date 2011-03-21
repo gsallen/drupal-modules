@@ -1,0 +1,182 @@
+<?php
+
+
+/*
+ * nativeportal_examplephrasepair_field_info()
+ * Implementation of hook_field_info().
+ */
+function nativeportal_examplephrasepair_field_info() {
+	return array(
+		'nativeportal_examplephrasepair' => array(
+			'label' => t('Example Phrase'),
+			'description' => t('Stores an English and Native language representation of the example phrase.'),
+		),
+	);
+}
+
+
+/*
+ * nativeportal_examplephrasepair_field_settings($op, $field)
+ * Implementation of hook_field_settings()
+ */
+function nativeportal_examplephrasepair_field_settings($op, $field) {
+	switch ($op) {
+		case 'database columns':
+			$columns = array(
+				'native_phrase' => array(	'type' => 'varchar',
+											'length' => 255,
+											'not null' => FALSE,
+											'default' => '',
+											'sortable' => TRUE
+										),
+				'english_phrase' => array(	'type' => 'varchar',
+											'length' => 255,
+											'not null' => FALSE,
+											'default' => '',
+											'sortable' => TRUE
+										),
+				);
+		return $columns;
+	}
+}
+
+
+/*
+ * nativeportal_examplephrasepair_content_is_empty($item, $field)
+ * Implementation of hook_content_is_empty()
+ */
+function nativeportal_examplephrasepair_content_is_empty($item, $field) {
+	if (empty($item['native_phrase']) || empty($item['english_phrase'])) {
+		return TRUE;
+	}
+	return FALSE;
+}
+
+
+/*
+ * nativeportal_examplephrasepair_theme()
+ * Implementation of hook_theme().
+ */
+function nativeportal_examplephrasepair_theme() {
+	return array(
+		'nativeportal_examplephrasepair_formatter_default' => array(
+			'arguments' => array('element' => NULL),
+		),
+		'nativeportal_examplephrasepair' => array(
+			'arguments' => array('element' => NULL),
+		),
+	);
+}
+
+
+/*
+ * nativeportal_examplephrasepair_field_formatter_info()
+ * Implementation of hook_field_formatter_info().
+ */
+function nativeportal_examplephrasepair_field_formatter_info() {
+	return array(
+		'default' => array(
+			'label' => t('Default'),
+			'field types' => array('nativeportal_examplephrasepair'),
+			'multiple values' => CONTENT_HANDLE_CORE,
+		),
+	);
+}
+
+
+/*
+ * theme_nativeportal_examplephrasepair_formatter_default($element)
+ * Provides a default formatter for our new CCK item. This really isn't used.
+ */
+function theme_nativeportal_examplephrasepair_formatter_default($element) {
+	$output = '';
+	$output .= '<div class="nativeportal_examplephrasepair-native_phrase">' . $element['#item']['native_phrase'] . '</div>';
+	$output .= '<div class="nativeportal_examplephrasepair-english_phrase">' . $element['#item']['english_phrase'] . '</div>';
+	return $output;
+}
+
+
+/*
+ * theme_nativeportal_examplephrasepair($element)
+ * Default element formatter for FAPI
+ */
+function theme_nativeportal_examplephrasepair($element) {
+	$output = '';
+	$output .= '<div class="nativeportal_examplephrasepair">';
+	$output .= theme('textfield', $element['native_phrase']);
+	$output .= theme('textfield', $element['english_phrase']);
+	$output .= '</div>';
+	return $output;
+}
+
+
+/*
+ * nativeportal_examplephrasepair_elements()
+ * Implementation of hook_elements()
+ */
+function nativeportal_examplephrasepair_elements() {
+	$elements = array(
+		'nativeportal_examplephrasepair' => array(
+			'#input' => TRUE,
+			'#process' => array('nativeportal_examplephrasepair_process'),
+		),
+	);
+	return $elements;
+}
+
+
+/*
+ * nativeportal_examplephrasepair_widget_info()
+ * Implementation of hook_widget_info()
+ */
+function nativeportal_examplephrasepair_widget_info() {
+	return array(
+		'nativeportal_examplephrasepair' => array(
+			'label' => 'Dictionary Phrase Pair',
+			'field types' => array('nativeportal_examplephrasepair'),
+			'multiple values' => CONTENT_HANDLE_CORE,
+		),
+	);
+}
+
+
+/*
+ * nativeportal_examplephrasepair_widget(&$form, &$form_state, $field, $items, $delta = 0)
+ * Implementation of hook_widget()
+ */
+function nativeportal_examplephrasepair_widget(&$form, &$form_state, $field, $items, $delta = 0) {
+
+	$element = array(
+		'#type' => $field['widget']['type'],
+		'#default_value' => isset($items[$delta]) ? $items[$delta] : '',
+		'#title' => $field['widget']['label'],
+		'#field' => $field,
+	);
+	return $element;
+}
+
+/**
+ * nativeportal_examplephrasepair_process($element, $edit, $form_state, $form)
+ * Implementation of hook_process()
+ */
+function nativeportal_examplephrasepair_process($element, $edit, $form_state, $form) {
+
+	$element['native_phrase'] = array(
+		'#type' => 'textfield',
+		'#title' => t('Phrase in Native Language'),
+		'#maxlength' => '255',
+		'#default_value' => isset($element['#value']['native_phrase']) ? $element['#value']['native_phrase'] : NULL,
+	);
+	$element['english_phrase'] = array(
+		'#type' => 'textfield',
+		'#title' => t('Phrase in English Language'),
+		'#maxlength' => '255',
+		'#default_value' => isset($element['#value']['english_phrase']) ? $element['#value']['english_phrase'] : NULL,
+	);
+	
+	return $element;
+	
+}
+
+
+?>

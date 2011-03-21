@@ -1,0 +1,59 @@
+<?php
+
+/*
+ * _nativePortalSaveNode($contentFormToUse,&$nodeObject,$opToUse='Save')
+ * Centralized function for node saving. We should be building a form, populating
+ * values and the submitting the form. This processes everything the way we want.
+ * 
+ * $contentFormToUse : STR defining the form that shoudl be populated (i.e. contenttype_node_save)
+ * $nodeObject : OBJ of the node data that was built.
+ * $opToUse : STR Operation to perform on the form. Save is typical.
+ * 
+ * node_save does not return TRUE or FALSE depending on success, so we need to do that here.
+ */
+function _nativePortalSaveNode($contentFormToUse,$nodeObject,$opToUse='Save') {
+
+	// Crude solution for blank line injection problems with video captions and caption links.
+	// This should not be necessary, but hook_is_empty doesn't appear to fire/operate
+	// as I understand it. Even with form saves it is not returning expected values.
+	if ($contentFormToUse=='video_node_form') {
+		// Cannot use _nativePortalCaptionsExist( because it allows for this nonsense
+		if (count($nodeObject->field_captionsdata)>0) {
+			foreach ($nodeObject->field_captionsdata as $curCaptionKey => $curCaptionElement) {
+				if (trim($curCaptionElement[native_phrase])=='' ||
+					trim($curCaptionElement[english_phrase])=='') {
+						unset ($nodeObject->field_captionsdata[$curCaptionKey]);
+					}
+			}
+		}
+
+		if (count($nodeObject->field_captionslinks)>0) {
+			foreach ($nodeObject->field_captionslinks as $curCaptionLinkKey => $curCaptionLink) {
+				if (trim($curCaptionLink[link_phrase])=='' ||
+					trim($curCaptionLink[target_node])=='') {
+						unset ($nodeObject->field_captionslinks[$curCaptionLinkKey]);
+					}
+			}
+		}
+	}
+
+	// Forms API method of saving the node. 'Proper' way.
+	//
+	// $formToSave = array();
+	// module_load_include('inc', 'node', 'node.pages');
+	// $formToSave['values']=(array) $nodeObject;
+	// $formToSave['values']['op'] = t($opToUse);
+	// drupal_execute($contentFormToUse, $formToSave, $nodeToUpdate);
+
+	$oldNodeChangedValue=$nodeObject->changed;
+	node_save(node_submit($nodeObject));
+
+	if ($nodeObject->changed != $oldNodeChangedValue) {
+		return TRUE;
+	}
+
+	return FALSE;
+}
+
+
+?>

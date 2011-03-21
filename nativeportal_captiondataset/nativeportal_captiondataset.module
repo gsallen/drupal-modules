@@ -1,0 +1,334 @@
+<?php
+
+/* 
+ * nativeportal_captiondataset_field_info()
+ * implementation of hook_field_info().
+ */
+function nativeportal_captiondataset_field_info() {
+	return array(
+		'nativeportal_captiondataset' => array(
+			'label' => t('Caption Elements'),
+			'description' => t('Stores a Start Time/End Time/English Phrase/Native Phrase caption set.'),
+		),
+	);
+}
+
+
+/*
+ * nativeportal_captiondataset_field_settings($op, $field)
+ * implementation of hook_field_settings().
+ */
+function nativeportal_captiondataset_field_settings($op, $field) {
+	switch ($op) {
+		case 'database columns':
+			$columns = array(
+				'start_time' => array(	'type' => 'float',
+											'not null' => FALSE,
+											'sortable' => TRUE,
+										),
+				'end_time' => array(	'type' => 'float',
+											'not null' => FALSE,
+											'sortable' => TRUE,
+										),
+				'native_phrase' => array(	'type' => 'varchar',
+											'length' => 255,
+											'not null' => FALSE,
+											'sortable' => TRUE,
+											'default' => ''
+										),
+				'english_phrase' => array(	'type' => 'varchar',
+											'length' => 255,
+											'not null' => FALSE,
+											'sortable' => TRUE,
+											'default' => ''
+										),
+				);
+		return $columns;
+	}
+}
+
+
+/*
+ * nativeportal_captiondataset_content_is_empty($item, $field)
+ * implementation of hook_content_is_empty().
+ */
+function nativeportal_captiondataset_content_is_empty($item, $field) {
+	if ( trim($item['native_phrase'])=='' || trim($item['english_phrase'])=='' || $item['start_time']==NULL || $item['end_time']==NULL ) {
+		return TRUE;
+	}
+	return FALSE;
+}
+
+
+/*
+ * nativeportal_captiondataset_theme()
+ * implementation of hook_theme().
+ */
+function nativeportal_captiondataset_theme() {
+	return array(
+		'nativeportal_captiondataset_formatter_default' => array(
+			'arguments' => array('element' => NULL),
+		),
+		'nativeportal_captiondataset' => array(
+			'arguments' => array('element' => NULL),
+		),
+	);
+}
+
+
+/*
+ * nativeportal_captiondataset_field_formatter_info()
+ * implementation of hook_field_formatter_info().
+ */
+function nativeportal_captiondataset_field_formatter_info() {
+	return array(
+		'default' => array(
+			'label' => t('Default'),
+			'field types' => array('nativeportal_captiondataset'),
+			'multiple values' => CONTENT_HANDLE_CORE,
+		),
+	);
+}
+
+/*
+ * theme_nativeportal_captiondataset_formatter_default($element)
+ * Provides a default formatter for our new CCK item. This really isn't used.
+ */
+function theme_nativeportal_captiondataset_formatter_default($element) {
+	$output = '';
+	$output .= '<div class="nativeportal_captiondataset-start_time">' . $element['#item']['start_time'] . '</div>';
+	$output .= '<div class="nativeportal_captiondataset-end_time">' . $element['#item']['end_time'] . '</div>';
+	$output .= '<div class="nativeportal_captiondataset-native_phrase">' . $element['#item']['native_phrase'] . '</div>';
+	$output .= '<div class="nativeportal_captiondataset-english_phrase">' . $element['#item']['english_phrase'] . '</div>';
+	return $output;
+}
+
+
+/*
+ * theme_nativeportal_captiondataset($element)
+ * Default formatter for FAPI
+ */
+function theme_nativeportal_captiondataset($element) {
+	$output = '';
+	$output .= '<div class="nativeportal_captiondataset">';
+	$output .= theme('textfield', $element['start_time']);
+	$output .= theme('textfield', $element['end_time']);
+	$output .= theme('textfield', $element['native_phrase']);
+	$output .= theme('textfield', $element['english_phrase']);
+	$output .= '</div>';
+	return $output;
+}
+
+
+/*
+ * nativeportal_captiondataset_elements()
+ * Implementation of hook_elements()
+ */
+function nativeportal_captiondataset_elements() {
+	$elements = array(
+		'nativeportal_captiondataset' => array(
+			'#input' => TRUE,
+			'#process' => array('nativeportal_captiondataset_process'),
+		),
+	);
+	return $elements;
+}
+
+
+/*
+ * nativeportal_captiondataset_widget_info()
+ * Implementation of hook_widget_info()
+ */
+function nativeportal_captiondataset_widget_info() {
+	return array(
+		'nativeportal_captiondataset' => array(
+			'label' => 'Caption Data Structure',
+			'field types' => array('nativeportal_captiondataset'),
+			'multiple values' => CONTENT_HANDLE_CORE,
+		),
+	);
+}
+
+
+/*
+ * nativeportal_captiondataset_widget(&$form, &$form_state, $field, $items, $delta = 0)
+ * Implementation of hook_widget()
+ */
+function nativeportal_captiondataset_widget(&$form, &$form_state, $field, $items, $delta = 0) {
+
+	$element = array(
+		'#type' => $field['widget']['type'],
+		'#default_value' => isset($items[$delta]) ? $items[$delta] : '',
+		'#title' => $field['widget']['label'],
+		'#field' => $field,
+	);
+	return $element;
+}
+
+
+/*
+ * nativeportal_captiondataset_process($element, $edit, $form_state, $form)
+ * Implementation of hook_process()
+ */
+function nativeportal_captiondataset_process($element, $edit, $form_state, $form) {
+
+	$element['start_time'] = array(
+		'#type' => 'textfield',
+		'#title' => t('Start Time Of Caption'),
+		'#maxlength' => '255',
+		'#default_value' => isset($element['#value']['start_time']) ? $element['#value']['start_time'] : NULL,
+	);
+	$element['end_time'] = array(
+		'#type' => 'textfield',
+		'#title' => t('End Time Of Caption'),
+		'#maxlength' => '255',
+		'#default_value' => isset($element['#value']['end_time']) ? $element['#value']['end_time'] : NULL,
+	);
+	$element['english_phrase'] = array(
+		'#type' => 'textfield',
+		'#title' => t('Phrase in English Language'),
+		'#maxlength' => '255',
+		'#default_value' => isset($element['#value']['english_phrase']) ? $element['#value']['english_phrase'] : NULL,
+	);
+	$element['native_phrase'] = array(
+		'#type' => 'textfield',
+		'#title' => t('Phrase in Native Language'),
+		'#maxlength' => '255',
+		'#default_value' => isset($element['#value']['native_phrase']) ? $element['#value']['native_phrase'] : NULL,
+	);	
+	return $element;
+	
+}
+
+
+/*
+ * _nativePortalValidateNewCaptionElement($captionsArray,$newCaptionElement)
+ * Crude validation to determine if caption should be added. Avoids 
+ * entering overlapping captions.
+ * 
+ * $captionsArray : ARR of existing nativeportal_captiondataset elements.
+ * $captionsArray : nativeportal_captiondataset element to add to node.
+ * 
+ */
+function _nativePortalValidateNewCaption($captionsArray,$newCaptionElement) {
+
+	if (_nativePortalCaptionsExist($captionsArray)) {
+
+		foreach($captionsArray as $curCaptionElement) {
+
+			if ($newCaptionElement['start_time'] >= $curCaptionElement['start_time'] &&
+				$newCaptionElement['start_time'] <= $curCaptionElement['end_time']) {
+				return FALSE;
+			}
+
+			if ($newCaptionElement['end_time'] >= $curCaptionElement['start_time'] &&
+			$newCaptionElement['end_time'] <= $curCaptionElement['end_time'] ) {
+				return FALSE;
+			}
+
+		}
+
+	}
+
+	return TRUE;
+}
+
+
+/*
+ * nativeportal_captiondataset_form_alter()
+ * Implementation of hook_form_alter();
+ */
+function nativeportal_captiondataset_form_alter(&$form, &$form_state, $form_id) {
+	switch ($form_id) {
+		
+		// Video Node edit form.
+		case 'video_node_form':
+			
+			// Add validator for caption data set.
+			$first = array_shift($form['#validate']);
+			array_unshift($form['#validate'], $first, '_nativePortalFormAlterationsCaptionSetValidate');
+		break;
+	}
+}
+
+
+/*
+ * _nativePortalFormAlterationsCaptionSetValidate()
+ * Custom validator callback for caption sets. Makes sure that new captions do not fall
+ * within the range of old ones.
+ */
+function _nativePortalFormAlterationsCaptionSetValidate ($form, &$form_state) {
+	if (!_nativePortalValidateAllCaptions($form['#post']['field_captionsdata'])) {
+		form_set_error('field_time_start', 'One or More Caption Times Overlap! Please ensure that all caption ranges are unique.');
+	}
+}
+
+
+/*
+ * _nativePortalValidateAllCaptions($captionsArray)
+ * Validates entire caption array if we do not know if any elements were altered.
+ * used in form validator for video nodes.
+ * 
+ * $captionsArray : ARR of existing nativeportal_captiondataset elements.
+ * 
+ * TODO: So inefficient. Could be combined with _nativePortalValidateNewCaption?
+ */
+function _nativePortalValidateAllCaptions($captionsArray) {
+
+	if (count($captionsArray)>0) { 
+		foreach($captionsArray as $curKeyOfArrayToValidate => $curCaptionElementToValidate) {
+			foreach ($captionsArray as $curKeyOfArrayToCompare => $curValueOfArrayToCompare) {
+				if ($curKeyOfArrayToValidate!=$curKeyOfArrayToCompare) {
+					if ($curCaptionElementToValidate['start_time'] >= $curValueOfArrayToCompare['start_time'] &&
+						$curCaptionElementToValidate['start_time'] <= $curValueOfArrayToCompare['end_time']) {
+						return FALSE;
+					}
+	
+					if ($curCaptionElementToValidate['end_time'] >= $curValueOfArrayToCompare['start_time'] &&
+						$curCaptionElementToValidate['end_time'] <= $curValueOfArrayToCompare['end_time'] ) {
+						return FALSE;
+					}
+				} 
+			}
+	
+		}
+	}
+	return TRUE;
+
+}
+
+
+/*
+ * _nativePortalCaptionsExist($captionsArray)
+ * Centralized 'captions-are-empty?' function.
+ * 
+ * $captionsArray : ARR of existing nativeportal_captiondataset elements.
+ * 
+ * Returns BOOL that answers question.
+ */
+function _nativePortalCaptionsExist($captionsArray) {
+
+	if (count($captionsArray)>0) {
+		// Ok, but sometimes the node returns a big pile of null.
+		if (count($captionsArray)==1) {
+			// Is this single element null?
+			foreach($captionsArray as $curCapElement) {
+				if (	$curCapElement['start_time']==NULL &&
+						$curCapElement['end_time']==NULL &&
+						$curCapElement['english_phrase']=='' &&
+						$curCapElement['native_phrase']=='') {
+							return FALSE;
+						}
+						
+			} 
+		}
+
+		return TRUE;
+	}
+
+	return FALSE;
+
+}
+
+
+?>

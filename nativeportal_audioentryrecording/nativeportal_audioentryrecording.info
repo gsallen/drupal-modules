@@ -1,0 +1,8 @@
+name = "Entry Audio Recording Module"
+description = "Nanogong based recording module to listen and record entry prounouciation and example phrases."
+version = "6.x-1.0"
+dependencies[] = content
+dependencies[] = filefield
+dependencies[] = nativeportal_coreoperations
+package = Native Language Portal
+core = 6.x

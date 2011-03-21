@@ -1,0 +1,34 @@
+<?php
+/*
+ * hook_install().
+ */
+function nativeportal_captionlinkpair_install() {
+	drupal_load('module', 'content');
+	content_notify('install', 'nativeportal_captionlinkpair');
+}
+
+/*
+ * hook_uninstall().
+ */
+function nativeportal_captionlinkpair_uninstall() {
+	drupal_load('module', 'content');
+	content_notify('uninstall', 'nativeportal_captionlinkpair');
+}
+
+/*
+ * hook_enable().
+ */
+function nativeportal_captionlinkpair_enable() {
+	drupal_load('module', 'content');
+	content_notify('enable', 'nativeportal_captionlinkpair');
+}
+
+/*
+ * hook_disable().
+ */
+function nativeportal_captionlinkpair_disable() {
+	drupal_load('module', 'content');
+	content_notify('disable', 'nativeportal_captionlinkpair');
+}
+
+?>

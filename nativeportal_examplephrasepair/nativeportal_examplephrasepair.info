@@ -1,0 +1,7 @@
+name = "Dictionary Phrase Pair"
+description = "Defines and creates a CCK field to store a Native / English phrase pair."
+version = "6.x-1.0"
+dependencies[] = content
+dependencies[] = nativeportal_coreoperations
+package = Native Language Portal
+core = 6.x
