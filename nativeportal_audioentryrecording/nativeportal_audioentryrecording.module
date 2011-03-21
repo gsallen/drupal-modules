@@ -298,26 +298,40 @@ function _nativePortalManageAudioRecordingsForm() {
 			'#weight' => -17,
 		);
 
-		$form['navButtons'] = array(
-			'#type' => 'markup',
-			'#prefix' => '<div id="navButtonWrapper" style="text-align:center;">',
-			'#suffix' => '</div>',
-			'#weight' => 0,
-		);
+		$adjacentNIDArray=_nativePortalGetAdjacentDictionaryEntries($nid);
 
-		$form['navButtons']['previousButton'] = array(
-			'#type' => 'submit',
-			'#value' => t('Previous Entry'),
-			'#weight' => 0,
-			'#name' => 'previousEntry',
-		);
+		if ($adjacentNIDArray[0] || $adjacentNIDArray[1]) {
+			$form['navButtons'] = array(
+				'#type' => 'markup',
+				'#prefix' => '<div id="navButtonWrapper" style="text-align:center;">',
+				'#suffix' => '</div>',
+				'#weight' => 0,
+			);
 
-		$form['navButtons']['nextButton'] = array(
-			'#type' => 'submit',
-			'#value' => t('Next Entry'),
-			'#name' => 'nextEntry',
-			'#weight' => 1,
-		);
+			if ($adjacentNIDArray[0]) {
+				// If only one NID comes back, it's either the beginning or the end.
+				// We figure it out here.
+				$buttonTextValue='Previous';
+				if ($adjacentNIDArray[0]>$nid) { $buttonTextValue='Next'; }
+				$form['navButtons']['previousButton'] = array(
+					'#type' => 'button',
+					'#value' => t($buttonTextValue.' Entry'),
+					'#name' => 'prevEntry',
+					'#attributes' => array('onclick' => "window.location='".url('node/'.$adjacentNIDArray[0].'/audiorecordings')."'; return false;"),
+					'#weight' => 0,
+				);
+			}
+
+			if ($adjacentNIDArray[1]) {
+				$form['navButtons']['nextButton'] = array(
+					'#type' => 'button',
+					'#value' => t('Next Entry'),
+					'#name' => 'nextEntry',
+					'#attributes' => array('onclick' => "window.location='".url('node/'.$adjacentNIDArray[1].'/audiorecordings')."'; return false;"),
+					'#weight' => 1,
+				);
+			}
+		}
 
 		$form['#nid'] = $nid;
 		$form['#submit'][] = 'entry_admin_audio_submit';

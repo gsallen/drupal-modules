@@ -183,4 +183,36 @@ function nativeportal_dictionaryentry_theme($existing, $type, $theme, $path) {
 }
 
 
+/*
+ * _nativePortalGetAdjacentDictionaryEntries($nid)
+ * Get adjacent dictionary entries to a specific dictionary entry.
+ * Sorts by NID, not sortName or title.
+ *
+ * $nid : INT of dictionary entry NID in question.
+ */
+function _nativePortalGetAdjacentDictionaryEntries($nid) {
+	$returnNidArray = array();
+
+	$queryToGetAdjacentDictionaryNodes=<<<EOT
+(SELECT {content_type_dictionaryentry}.nid as nid
+FROM {content_type_dictionaryentry}
+WHERE nid<%d
+ORDER BY nid DESC
+LIMIT 1)
+UNION
+(SELECT {content_type_dictionaryentry}.nid as nid
+FROM {content_type_dictionaryentry}
+WHERE nid>%d
+ORDER BY nid ASC
+LIMIT 1)
+EOT;
+
+	$adjacentResult = db_query($queryToGetAdjacentDictionaryNodes, $nid,$nid);
+	while($adjacentObject = db_fetch_object($adjacentResult)) {
+		$returnNidArray[]=$adjacentObject->nid;
+	}
+
+	return($returnNidArray);
+}
+
 ?>
