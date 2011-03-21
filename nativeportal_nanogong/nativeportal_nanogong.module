@@ -182,9 +182,9 @@ function nanogong_get_extension() {
  * 
  */
 function _nativePortalGetNanogongAppletHTML($idToUse,$jarPath,$width,$height,$parametersToUse) {
-	
+
 	$appletHTML='<applet id="'.$idToUse.'" archive="'.$jarPath.'/nanogong.jar" code="gong.NanoGong" width="'.$width.'" height="'.$height.'">'."\n";
-	
+
 	if (count($parametersToUse) > 0) {
 		foreach ($parametersToUse as $curParameterName => $curParameterValue) {
 			$appletHTML.='<param name="'.$curParameterName.'" value="'.trim($curParameterValue).'" />'."\n";

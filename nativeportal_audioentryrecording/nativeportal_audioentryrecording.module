@@ -249,7 +249,6 @@ function _nativePortalManageAudioRecordingsForm() {
 			'#weight' => -29,
 		);
 
-
 		$form['nodeExample'] = array(
 			'#type' => 'fieldset',
 			'#title' => t('Example Sentences'),

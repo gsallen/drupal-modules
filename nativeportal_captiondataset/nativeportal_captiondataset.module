@@ -283,7 +283,7 @@ function _nativePortalValidateAllCaptions($captionsArray) {
 						$curCaptionElementToValidate['start_time'] <= $curValueOfArrayToCompare['end_time']) {
 						return FALSE;
 					}
-	
+
 					if ($curCaptionElementToValidate['end_time'] >= $curValueOfArrayToCompare['start_time'] &&
 						$curCaptionElementToValidate['end_time'] <= $curValueOfArrayToCompare['end_time'] ) {
 						return FALSE;
@@ -319,7 +319,6 @@ function _nativePortalCaptionsExist($captionsArray) {
 						$curCapElement['native_phrase']=='') {
 							return FALSE;
 						}
-						
 			} 
 		}
 
