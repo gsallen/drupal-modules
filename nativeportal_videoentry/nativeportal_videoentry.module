@@ -100,19 +100,19 @@ function _nativePortalDeleteCaptionLine() {
 
 			// Save node.
 			if (_nativePortalSaveNode('video_node_form',$nodeToDeleteCaptionLine)) {
-				watchdog('native_video','Caption Line Deleted : ['.arg(2).'|'.arg(3).']');
+				watchdog('native_video',t('Caption Line Deleted').' : ['.arg(2).'|'.arg(3).']');
 			} else {
-				print "Node Save Operation failed.";
+				print t('Node Save Operation failed.');
 			}
 
 		} else {
-			$messageToPrint="Target caption element does not exist";
-			watchdog('native_video','Caption Line Not Deleted :'.$messageToPrint);
+			$messageToPrint=t('Target caption element does not exist');
+			watchdog('native_video',t('Caption Line Not Deleted').' :'.$messageToPrint);
 			print $messageToPrint;
 		}
 	} else {
-		$messageToPrint="Target node type is invalid";
-		watchdog('native_video','Caption Line Not Deleted :'.$messageToPrint);
+		$messageToPrint=t('Target node type is invalid');
+		watchdog('native_video',t('Caption Line Not Deleted').' :'.$messageToPrint);
 		print $messageToPrint;
 	}
 }
@@ -163,10 +163,10 @@ function _nativePortalManagedLinkedWords() {
 	// Check for each. 
 	if (preg_match($customFormatMask, trim(arg(5)), $nidMatchArray)) {
 		$dictionaryNIDToLink=$nidMatchArray[1];
-		watchdog('native_video',"NID $dictionaryNIDToLink matched through custom format mask.");
+		watchdog('native_video',"NID $dictionaryNIDToLink ".t('matched through custom format mask.'));
 	} elseif (preg_match($onlyIntegersMask, trim(arg(5)), $nidMatchArray)) {
 		$dictionaryNIDToLink=$nidMatchArray[1];
-		watchdog('native_video',"NID $dictionaryNIDToLink matched through integer mask.");
+		watchdog('native_video',"NID $dictionaryNIDToLink ".t('matched through integer mask.'));
 	} else {
 		// Make sure target node is not null, and is a dictionary entry.
 		if(trim(arg(5))!='') {
@@ -174,15 +174,15 @@ function _nativePortalManagedLinkedWords() {
 			if ($testNodeTitleMatch->type=='dictionaryentry') {
 				$dictionaryNIDToLink=$testNodeTitleMatch->nid;
 			} else {
-				print $watchDogMessage="Invalid Target Node.";
-				$watchDogStringToReturn="Caption Not Modified : $watchDogMessage";
+				print $watchDogMessage=t('Invalid Target Node.');
+				$watchDogStringToReturn=t('Caption Not Modified : ').$watchDogMessage;
 				watchdog('native_video',$watchDogStringToReturn);
 				die;
 			}
 		} else {
 			// No match. Die.
-			print $watchDogMessage="Null Target Node.";
-			$watchDogStringToReturn="Caption Not Modified : $watchDogMessage";
+			print $watchDogMessage=t('Null Target Node.');
+			$watchDogStringToReturn=t('Caption Not Modified')." : $watchDogMessage";
 			watchdog('native_video', $watchDogStringToReturn);
 			die;
 		}
@@ -191,8 +191,8 @@ function _nativePortalManagedLinkedWords() {
 	// Check if parent nid is type video.
 	$videoNodeToUpdate=node_load(arg(2));
 	if ($videoNodeToUpdate->type != 'video') {
-		print $watchDogMessage="Invalid Video Node Specified";
-		$watchDogStringToReturn="Caption Not Modified : $watchDogMessage";
+		print $watchDogMessage=t('Invalid Video Node Specified');
+		$watchDogStringToReturn=t('Caption Not Modified')." : $watchDogMessage";
 		watchdog('native_video',$watchDogStringToReturn);
 		die;
 	}
@@ -202,8 +202,8 @@ function _nativePortalManagedLinkedWords() {
 	if (arg(3) != 'del') {
 	$dictionaryNodeToCheck=node_load($dictionaryNIDToLink);
 		if ($dictionaryNodeToCheck->type != 'dictionaryentry') {
-			print $watchDogMessage="Invalid Dictionary Node Specified";
-			$watchDogStringToReturn="Caption Not Modified : $watchDogMessage";
+			print $watchDogMessage=t('Invalid Dictionary Node Specified');
+			$watchDogStringToReturn=t('Caption Not Modified : ').$watchDogMessage;
 			watchdog('native_video',$watchDogStringToReturn);
 			die;
 		}
@@ -261,7 +261,7 @@ function _nativePortalManagedLinkedWords() {
 					if (_nativePortalSaveNode('video_node_form',$videoNodeToUpdate)) {
 						$watchDogStringToReturn="Caption Link Added $tripletStringForLog";
 					} else {
-						print "Node Save Operation failed.";
+						print t('Node Save Operation failed.');
 					}
 
 				} else {
@@ -281,28 +281,28 @@ function _nativePortalManagedLinkedWords() {
 
 					// Save node.
 					if (_nativePortalSaveNode('video_node_form',$videoNodeToUpdate)) {
-						$watchDogStringToReturn="Caption Link Deleted $tripletStringForLog";
+						$watchDogStringToReturn=t('Caption Link Deleted ').$tripletStringForLog;
 					} else {
-						print "Node Save Operation failed.";
+						print t('Node Save Operation failed.');
 					}
 
 				} else {
-					print $watchDogMessage="Delete Requested [$captionMatchingIndex]- No Matching Link";
-					$watchDogStringToReturn="Caption Not Modified : $watchDogMessage";
+					print $watchDogMessage=t('Delete Requested [').$captionMatchingIndex.t(']- No Matching Link');
+					$watchDogStringToReturn=t('Caption Not Modified : ').$watchDogMessage;
 					watchdog('native_video',$watchDogStringToReturn);
 					break;
 				}
 			break;
 
 			default:
-				print $watchDogMessage="Improper Operation Specified";
-				$watchDogStringToReturn="Caption Not Modified : $watchDogMessage";
+				print $watchDogMessage=t('Improper Operation Specified');
+				$watchDogStringToReturn=t('Caption Not Modified : ').$watchDogMessage;
 			break;
 
 		}
 	} else {
-		print $watchDogMessage="Phrase Not Found In Captions";
-		$watchDogStringToReturn="Caption Not Modified : $watchDogMessage";
+		print $watchDogMessage=t('Phrase Not Found In Captions');
+		$watchDogStringToReturn=t('Caption Not Modified : ').$watchDogMessage;
 		watchdog('native_video',$watchDogStringToReturn);
 	}
 
@@ -362,31 +362,31 @@ function _nativePortalAddCaptionToVideoNode() {
 
 			// Resave.
 			if (_nativePortalSaveNode('video_node_form',$nodeToUpdate)) {
-				$watchDogStringToReturn="Caption Link Added $tripletStringForLog";
+				$watchDogStringToReturn=t('Caption Link Added ').$tripletStringForLog;
 			} else {
-				print "Node Save Operation failed.";
+				print t('Node Save Operation failed.');
 			}
 
 		} else {
 			// Print out errors as they apply.
-			$errorMessageToPrint='Error : ';
+			$errorMessageToPrint=t('Error : ');
 			if (!$secondsStartVal) {
-				$errorMessageToPrint.="Start time is outside length of video.\n";
+				$errorMessageToPrint.=t('Start time is outside length of video.')."\n";
 			}
 			if (!$secondsEndVal) {
-				$errorMessageToPrint.="End time is outside length of video.\n";
+				$errorMessageToPrint.=t('End time is outside length of video.')."\n";
 			}
 			if ($secondsStartVal>=$secondsEndVal) {
-				$errorMessageToPrint.="Start time is equal to or later than End time.\n";
+				$errorMessageToPrint.=t('Start time is equal to or later than End time.')."\n";
 			}
 			if (!_nativePortalValidateNewCaption($nodeToUpdate->field_captionsdata,$elementToAddToCaptions)) {
-				$errorMessageToPrint.="Caption times overlap with existing caption.\n";
+				$errorMessageToPrint.=t('Caption times overlap with existing caption.')."\n";
 			}
 			if (strlen($englishCaptionString)==0) {
-				$errorMessageToPrint.="English Caption Contains No Data.\n";
+				$errorMessageToPrint.=t('English Caption Contains No Data.')."\n";
 			}
 			if (strlen($nativeCaptionString)==0) {
-				$errorMessageToPrint.="Native Caption Contains No Data.\n";
+				$errorMessageToPrint.=t('Native Caption Contains No Data.')."\n";
 			}
 
 			print $errorMessageToPrint;
@@ -532,7 +532,7 @@ function _nativePortal_video_captions_form() {
 		$form['manageCaptionsTabset']['manageCaptionLinks']['linkingInstructions']['title'] = array(
 			'#type' => 'markup',
 			'#prefix' => '<h2>',
-			'#value' => 'Creating a New Link:',
+			'#value' => t('Creating a New Link:'),
 			'#suffix' => '</h2>',
 			'#weight' => 2,
 		);
@@ -540,7 +540,7 @@ function _nativePortal_video_captions_form() {
 		$form['manageCaptionsTabset']['manageCaptionLinks']['linkingInstructions']['instructiontext'] = array(
 			'#type' => 'markup',
 			'#prefix' => '<p>',
-			'#value' => 'To create a new link in the captions, highlight a native with your mouse in the "Current Captions Element" box. A box will pop-up to finish defining the link.',
+			'#value' => t('To create a new link in the captions, highlight a native with your mouse in the "Current Captions Element" box. A box will pop-up to finish defining the link.'),
 			'#suffix' => '</p>',
 			'#weight' => 3,
 		);
@@ -600,7 +600,7 @@ function _nativePortalGetVideoInformationBlock($videoNodeObject) {
 		$locationTermsHtml.=l($locationTerm->name,'taxonomy/term/'.$locationTerm->tid).', ';
 	}
 	$locationTermsHtml=substr($locationTermsHtml,0,-2);
-	if ($locationTermsHtml=='') { $locationTermsHtml='Unknown'; }
+	if ($locationTermsHtml=='') { $locationTermsHtml=t('Unknown'); }
 
 	// Generate list of 'people in video' taxonomy terms.
 	$peopleList = taxonomy_node_get_terms_by_vocabulary($videoNodeObject,3);
@@ -609,7 +609,7 @@ function _nativePortalGetVideoInformationBlock($videoNodeObject) {
 		$peopleListHtml.=l($currentPerson->name,'taxonomy/term/'.$currentPerson->tid).', ';
 	}
 	$peopleListHtml=substr($peopleListHtml,0,-2);
-	if ($peopleListHtml=='') { $peopleListHtml='None Identified'; }
+	if ($peopleListHtml=='') { $peopleListHtml=t('None Identified'); }
 
 	// Generate list of topics discussed in video taxonomy terms.
 	$topicList = taxonomy_node_get_terms_by_vocabulary($videoNodeObject,4);
@@ -618,7 +618,7 @@ function _nativePortalGetVideoInformationBlock($videoNodeObject) {
 		$topicListHtml.=l($currentTopic->name,'taxonomy/term/'.$currentTopic->tid).', ';
 	}
 	$topicListHtml=substr($topicListHtml,0,-2);
-	if ($topicListHtml=='') { $topicListHtml='None Defined'; }
+	if ($topicListHtml=='') { $topicListHtml=t('None Defined'); }
 
 	$videoInfoForm['videoInformationBlockContainer'] = array(
 		'#type' => 'markup',
@@ -639,7 +639,7 @@ function _nativePortalGetVideoInformationBlock($videoNodeObject) {
 	$videoInfoForm['videoInformationBlockContainer']['videoInformationDateOfCapture'] = array(
 		'#type' => 'markup',
 		'#prefix' => '<div class="videoInformationDateOfCapture">',
-		'#value' => t("Capture Date : $dateOfCaptureHtml"),
+		'#value' => t('Capture Date : ').$dateOfCaptureHtml,
 		'#suffix' => '</div>',
 		'#weight' => -8,
 	);
@@ -647,7 +647,7 @@ function _nativePortalGetVideoInformationBlock($videoNodeObject) {
 	$videoInfoForm['videoInformationBlockContainer']['videoInformationRunTime'] = array(
 		'#type' => 'markup',
 		'#prefix' => '<div class="videoInformationRunTime">',
-		'#value' => t("Video Length : $runtimeString"),
+		'#value' => t('Video Length : ').$runtimeString,
 		'#suffix' => '</div>',
 		'#weight' => -7,
 	);
@@ -655,7 +655,7 @@ function _nativePortalGetVideoInformationBlock($videoNodeObject) {
 	$videoInfoForm['videoInformationBlockContainer']['videoInformationSpeakers'] = array(
 		'#type' => 'markup',
 		'#prefix' => '<div class="videoInformationSpeakers">',
-		'#value' => t("People in Video : $speakerListHtml"),
+		'#value' => t('People in Video : ').$speakerListHtml,
 		'#suffix' => '</div>',
 		'#weight' => -6,
 	);
@@ -663,7 +663,7 @@ function _nativePortalGetVideoInformationBlock($videoNodeObject) {
 	$videoInfoForm['videoInformationBlockContainer']['videoInformationTopics'] = array(
 		'#type' => 'markup',
 		'#prefix' => '<div class="videoInformationTopics">',
-		'#value' => t("Topics Discussed: $topicListHtml"),
+		'#value' => t('Topics Discussed: ').$topicListHtml,
 		'#suffix' => '</div>',
 		'#weight' => -5,
 	);
@@ -698,7 +698,7 @@ function _nativePortalGetVideoCaptionTable ($generatingNID,$captionArray,$classO
 		$captionsTableDataRows=array();
 
 		// Set table header strings.
-		$captionsTableHeaderColumns=array('Start Time','End Time','English Phrase','Native Phrase');
+		$captionsTableHeaderColumns=array(t('Start Time'),t('End Time'),t('English Phrase'),t('Native Phrase'));
 		
 		if ($includeDeleteLink == 1) { $captionsTableHeaderColumns[]='Delete'; }
 		
@@ -739,7 +739,7 @@ function _nativePortalGetVideoCaptionTable ($generatingNID,$captionArray,$classO
 
 				if ($includeDeleteLink == 1) {
 					$captionsTableDataRows[count($captionsTableDataRows)-1]['data'][]=array(
-						'data' => "Delete",
+						'data' => t('Delete'),
 						'class' => 'deleteCaptionRow',
 						'onclick' => 'nativePortalDeleteCaptionRow("'.$generatingNID.'","'.$curCapKey.'");',
 					);
@@ -944,7 +944,7 @@ EOT;
 			$captionStringToReturn=drupal_to_js($nodeToUse->field_captionsdata,TRUE);
 		}
 	} else {
-		$captionStringToReturn="No Matching Format Found";
+		$captionStringToReturn=t('No Matching Format Found');
 	}
 
 	print $captionStringToReturn;
@@ -1320,8 +1320,8 @@ function _nativePortalGetExampleUsageTableFormElement ($node,$weightToUse) {
 	if (count($node->field_phrasepairexample)>0) {
 
 		$exampleTableHeaderRows=array(
-			'Native Representation',
-			'English Representation',
+			t('Native Representation'),
+			t('English Representation'),
 		);
 
 		$exampleTableDataRows=array();
@@ -1375,7 +1375,7 @@ function _nativePortalGetAddCaptionLineFormElement(&$form,$nid) {
 		'#type' => 'markup',
 		'#prefix' => '<h2>',
 		'#suffix' => '</h2>',
-		'#value' => 'Add Caption Element:',
+		'#value' => t('Add Caption Element:'),
 		'#weight' => 0,
 	);
 
@@ -1469,7 +1469,7 @@ function _nativePortalTidyCaptionLinks(&$nodeObject,$deleteType) {
 						}
 
 						if (!$foundInCaptions) {
-							watchdog('captions_tidy',"Deleting link to .. {$curLinkData['link_phrase']}");
+							watchdog('captions_tidy',t('Deleting link to .. ').$curLinkData['link_phrase']);
 							unset($nodeObject->field_captionslinks[$curLinkKey]);
 						}
 					
@@ -1478,12 +1478,12 @@ function _nativePortalTidyCaptionLinks(&$nodeObject,$deleteType) {
 				}
 			} else {
 					// If we have no real captions at all, the links should all be deleted without checking.
-					watchdog('captions_tidy',"No captions found.. deleting all links. ".print_r($nodeObject,TRUE));
+					watchdog('captions_tidy',t('No captions found.. deleting all links.').print_r($nodeObject,TRUE));
 
 					// ... if we have any.
 					if (count($nodeObject->field_captionslinks) > 0) { 
 						foreach ($nodeObject->field_captionslinks as $curLinkKey => $curLinkData) {
-							watchdog('captions_tidy',"Deleting link to .. {$curLinkData['link_phrase']}");
+							watchdog('captions_tidy',t('Deleting link to .. ').$curLinkData['link_phrase']);
 							unset($nodeObject->field_captionslinks[$curLinkKey]);
 						}
 					}

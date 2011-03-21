@@ -127,7 +127,7 @@ function nativeportal_captionlinkpair_elements() {
 function nativeportal_captionlinkpair_widget_info() {
 	return array(
 		'nativeportal_captionlinkpair' => array(
-			'label' => 'Caption Link Pair',
+			'label' => t('Caption Link Pair'),
 			'field types' => array('nativeportal_captionlinkpair'),
 			'multiple values' => CONTENT_HANDLE_CORE,
 		),

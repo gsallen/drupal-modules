@@ -34,7 +34,7 @@ function nativeportal_nanogong_help($path, $arg) {
 function nativeportal_nanogong_menu() {
 	// admin tab
 	$items['admin/settings/nanogong'] = array(
-		'title' => 'Audio Recording',
+		'title' => t('Audio Recording'),
 		'access arguments'=>array('administer nanogong'),
 		'page callback'=>'drupal_get_form',
 		'page arguments'=>array('nanogong_settings'),

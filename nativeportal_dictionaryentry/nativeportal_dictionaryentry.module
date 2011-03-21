@@ -21,8 +21,8 @@ function _nativePortalGetExamplePhraseTable($node) {
 	if (trim($node->field_phrasepairexample[0]['native_phrase'])!='') {
 
 		$exampleTableHeaderRows=array(
-			'Native Representation',
-			'English Representation',
+			t('Native Representation'),
+			t('English Representation'),
 		);
 
 		$exampleTableDataRows=array();
@@ -67,8 +67,8 @@ function _nativePortalGetVideosReferencingDictionaryEntryTable($nid,$weightToUse
 	if (count($arrayOfNodesToDisplay)>0) {
 
 		$exampleTableHeaderRows=array(
-			'Title Of Video',
-			'Approximate Time Word Is Spoken',
+			t('Title Of Video'),
+			t('Approximate Time Word Is Spoken'),
 		);
 
 		$exampleTableDataRows=array();

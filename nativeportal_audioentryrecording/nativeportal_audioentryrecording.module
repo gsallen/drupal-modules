@@ -39,14 +39,14 @@ function _nativePortalSaveNanoGongFile() {
 	// Validate Node As Dictionary Type
 	$nodeToVerify=node_load(arg(2));
 	if ($nodeToVerify->type!='dictionaryentry') {
-		print "Not a Valid Dictionary Node";
+		print t('Not a Valid Dictionary Node');
 		return(false);
 	}
 
 	// Validate User
 	global $user;
 	if (!$user->uid) {
-		print "Not Logged In As a User";
+		print t('Not Logged In As a User');
 		return(false);
 	}
 
@@ -134,13 +134,13 @@ function _nativePortalSaveNanoGongFile() {
 
 		// Save The Node. I think we're done.
 		if (_nativePortalSaveNode('dictionaryentry_node_save',$nodeToInsert,'Save')) {
-			print "Audio Recording Successfully Saved";
+			print t('Audio Recording Successfully Saved');
 		} else {
-			print "Node Save Operation failed.";
+			print t('Node Save Operation failed.');
 		}
 
 	} else {
-		print "File Upload Error";
+		print t('File Upload Error');
 	}
 
 }
@@ -185,7 +185,7 @@ function _nativePortalGetNanogongWidgetForRecording($node) {
 				'word' 		=>	t('Word Being Spoken'), 
 				'example' 	=> 	t('Example Phrases Being Spoken'),
 			),
-			'#attributes' => array('id' => t('recording_type')),
+			'#attributes' => array('id' => 'recording_type'),
 			'#prefix' => '<div id="recordingTypeContainer">',
 			'#suffix' => '</div>',
 			'#weight' => -9,

@@ -142,7 +142,7 @@ function nativeportal_captiondataset_elements() {
 function nativeportal_captiondataset_widget_info() {
 	return array(
 		'nativeportal_captiondataset' => array(
-			'label' => 'Caption Data Structure',
+			'label' => t('Caption Data Structure'),
 			'field types' => array('nativeportal_captiondataset'),
 			'multiple values' => CONTENT_HANDLE_CORE,
 		),
@@ -259,7 +259,7 @@ function nativeportal_captiondataset_form_alter(&$form, &$form_state, $form_id) 
  */
 function _nativePortalFormAlterationsCaptionSetValidate ($form, &$form_state) {
 	if (!_nativePortalValidateAllCaptions($form['#post']['field_captionsdata'])) {
-		form_set_error('field_time_start', 'One or More Caption Times Overlap! Please ensure that all caption ranges are unique.');
+		form_set_error('field_time_start', t('One or More Caption Times Overlap! Please ensure that all caption ranges are unique.'));
 	}
 }
 

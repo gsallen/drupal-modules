@@ -132,7 +132,7 @@ function nativeportal_examplephrasepair_elements() {
 function nativeportal_examplephrasepair_widget_info() {
 	return array(
 		'nativeportal_examplephrasepair' => array(
-			'label' => 'Dictionary Phrase Pair',
+			'label' => t('Dictionary Phrase Pair'),
 			'field types' => array('nativeportal_examplephrasepair'),
 			'multiple values' => CONTENT_HANDLE_CORE,
 		),
