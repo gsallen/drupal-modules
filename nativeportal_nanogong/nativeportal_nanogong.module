@@ -53,19 +53,6 @@ function nativeportal_nanogong_settings() {
 	$default_option = variable_get('nanogong_recording_type','word');
 	$default_option = $default_option !== NULL ? $default_option : key($options);
 
-	if (count($options) > 0) {
-		$form['nanogong_recording_type'] = array(
-			'#type'=>'select',
-			'#title'=>t('Select default recording type'),
-			'#default_value'=>$default_option,
-			'#options'=> array(
-				'Word Pronounciation' => 'Word Pronounciation',
-				'Phrase Pronounciation' => 'Phrase Pronounciation'
-			),
-			'#description'=>t('The default recording type for recording. Can be changed on each individual page.'),
-		);
-	}
-
 	$form['nanogong_ShowRecordButton'] = array(
 		'#type'=>'radios',
 		'#title'=>'Show Record button',
