@@ -5,7 +5,7 @@
  * Centralized function for node saving. We should be building a form, populating
  * values and the submitting the form. This processes everything the way we want.
  * 
- * $contentFormToUse : STR defining the form that shoudl be populated (i.e. contenttype_node_save)
+ * $contentFormToUse : STR defining the form that should be populated (i.e. contenttype_node_save)
  * $nodeObject : OBJ of the node data that was built.
  * $opToUse : STR Operation to perform on the form. Save is typical.
  * 
