@@ -169,14 +169,6 @@ function _nativePortalGetNanogongWidgetForRecording($node) {
 	$SpeexQuality = variable_get('nanogong_SpeexQuality', '10');
 
 	$recording_type = variable_get('nanogong_recording_type','word');
-	if ($recording_type == 'word') {
-		$word_selected = 'selected';
-		$example_selected = '';
-	}
-	else {
-		$word_selected = '';
-		$example_selected = 'selected';
-	}
 
 	// Start form here.
 	$recordingWidgetForm['nanogongWidget'] = array(
