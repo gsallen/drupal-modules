@@ -63,6 +63,9 @@ function _nativePortalSaveNanoGongFile() {
 		// $baseFilePathToSaveFile=real_path('.').file_directory_path();
 		$baseFilePathToSaveFile='/home/jsanford/public_html/passa2/sites/default/files';
 
+		// Sanitize filename.
+		preg_replace('/[^a-z0-9\._-]+/gi',$fileNameToUse);
+
 		$fullFileTargetForUpload=$baseFilePathToSaveFile.'/'.$fileNameToUse;
 		copy($_FILES['file']['tmp_name'],$fullFileTargetForUpload);
 
