@@ -1045,7 +1045,7 @@ function _nativePortalGetSubsetsOfCaption($captionString,$maxWordLength) {
 	$maxWordLength=3;
 	
 	// Sanitize string of known 'safe to remove' punctuations values.
-	$captionString=preg_replace( "/\W+$/", "", $captionString );
+	$captionString=preg_replace( '/\W+$/', '', $captionString );
 
 	// Split it into word values.
 	$arrayOfWordsInString=split(" ",$captionString);
