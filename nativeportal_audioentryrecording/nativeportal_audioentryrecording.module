@@ -40,14 +40,14 @@ function _nativePortalSaveNanoGongFile() {
 	$nodeToVerify=node_load(arg(2));
 	if ($nodeToVerify->type!='dictionaryentry') {
 		print "Not a Valid Dictionary Node";
-		return('');
+		return(false);
 	}
 
 	// Validate User
 	global $user;
 	if (!$user->uid) {
 		print "Not Logged In As a User";
-		return('');
+		return(false);
 	}
 
 	// TODO: (Feature) : Check if user has a file of this type uploaded already. If so, overwrite.
