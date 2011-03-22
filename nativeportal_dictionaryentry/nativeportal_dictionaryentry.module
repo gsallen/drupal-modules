@@ -116,7 +116,7 @@ function _nativePortalGetVideosReferencingDictionaryEntry($nid) {
 	$captionLinkQuery = db_query("SELECT nid,{field_captionslinks_link_phrase} as link_phrase FROM {content_field_captionslinks} WHERE {field_captionslinks_target_node} = '%s'", $nid);
 	while ($captionLinkRow = db_fetch_object($captionLinkQuery )) {
 
-		$captionTimeQuery=db_query('SELECT {field_captionsdata_start_time} as start_time from {content_field_captionsdata} WHERE {field_captionsdata_native_phrase} LIKE "%'.$captionLinkRow->link_phrase.'%"');
+		$captionTimeQuery=db_query('SELECT {field_captionsdata_start_time} as start_time from {content_field_captionsdata} WHERE {field_captionsdata_native_phrase} LIKE "%%%s%"',$captionLinkRow->link_phrase);
 		while ($captionTimeRow = db_fetch_object($captionTimeQuery)) {
 			$timeOfOccurence=$captionTimeRow->start_time;
 		}
