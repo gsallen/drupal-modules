@@ -353,4 +353,3 @@ function nativePortalDeleteCaptionRow(nid,capKey) {
 		});
 	}
 }
-
