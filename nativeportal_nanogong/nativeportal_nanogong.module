@@ -51,7 +51,7 @@ function nativeportal_nanogong_settings() {
 
 	$form = array();
 	$default_option = variable_get('nanogong_recording_type','word');
-	$default_option = $default_option !== NULL ? $default_option : key($options);
+	$default_option = isset($default_option) ? $default_option : key($options);
 
 	$form['nanogong_ShowRecordButton'] = array(
 		'#type'=>'radios',
