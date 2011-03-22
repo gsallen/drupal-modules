@@ -22,6 +22,6 @@
 ?>
 
 <?php
-$userToDisplay=user_load($output);
+$userToDisplay=user_load($row->users_uid);
 print $userToDisplay->name;
 ?>

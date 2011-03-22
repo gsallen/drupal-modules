@@ -20,14 +20,15 @@
   * the view is modified.
   */
 ?>
-<?php 
+<?php
 
+$fileArray = field_file_load($row->node_data_field_parentdictionaryentry_field_nativespeechaudiofile_fid);
 print _nativePortalGetNanogongAppletHTML('nanogong',drupal_get_path('module', 'nativeportal_nanogong').'/nanogong','150','40',array(
 						'ShowAudioLevel' => 'true',
 						'ShowRecordButton' => 'false',
 						'ShowSaveButton' => 'true',
 						'ShowSpeedButton' => 'true',
-						'SoundFileURL' => t(base_path().'sites/default/files/native-recording_24_1_word_sound.wav.spx'),
+						'SoundFileURL' => base_path().$fileArray['filepath'],
 					));
 
 ?>
