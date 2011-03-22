@@ -57,7 +57,8 @@ function _nativePortalSaveNanoGongFile() {
 	if ($_FILES['file']['error']==0 && $_FILES['file']['size']!='0') {
 
 		// Copy file to drupal structure location. ($_FILES['tmp_name'])
-		$fileNameToUse='native-recording_'.arg(2).'_'.$user->uid.'_'.strtolower(str_replace(' ','-',trim(arg(3)))).'_'.$_FILES['file']['name'];
+		$nodeTitleToUse='native-recording_'.arg(2).'_'.$user->uid.'_'.strtolower(str_replace(' ','-',trim(arg(3))));
+		$fileNameToUse=$nodeTitleToUse.'_'._nativePortalGenerateHashForFilename().'_'.$_FILES['file']['name'];
 
 		// Below is the REAL Line to define the path, but homedir serving sometimes is funky. Uncomment on production.
 		// $baseFilePathToSaveFile=real_path('.').file_directory_path();
@@ -93,7 +94,7 @@ function _nativePortalSaveNanoGongFile() {
 		$nodeToInsert = new StdClass();
 		$nodeToInsert->type = 'nativespeakeraudio';
 		$nodeToInsert->body = '';
-		$nodeToInsert->title = $fileNameToUse;
+		$nodeToInsert->title = $nodeTitleToUse;
 
 		// CCK Filefield For field_nativespeechaudiofile
 		$nodeToInsert->field_nativespeechaudiofile = array(
@@ -338,6 +339,23 @@ function _nativePortalManageAudioRecordingsForm() {
 	}
 
 	return $form;
+}
+
+
+/*
+ * _nativePortalGenerateHashForFilename($length=8)
+ * Generates random hash for filename to ensure no duplicates.
+ */
+function _nativePortalGenerateHashForFilename($passes=16){
+	$result = "";
+	// Set up the pool to draw from.
+	$charPool = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
+	for($p = 0; $p<$passes; $p++) {
+		// Select a random character from the pool.
+		$result .= $charPool[mt_rand(0,strlen($charPool)-1)];
+	}
+	// Use this character in a SHA1 then MD5 it, truncating to 8 chars.
+	return substr(md5(sha1($result)),-8);
 }
 
 ?>
