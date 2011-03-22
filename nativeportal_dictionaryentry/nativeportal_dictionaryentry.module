@@ -137,8 +137,10 @@ function _nativePortalGetVideosReferencingDictionaryEntry($nid) {
 function nativeportal_dictionaryentry_nodeapi($node, $op, $teaser, $page) {
 	if ($op == 'delete') {
 		if ($node->type=='dictionaryentry') {
-			// If we are deleting, tidy up any links in videos relating to this entry.
+			// Tidy up any links in videos relating to this entry.
 			_nativePortalTidyCaptionLinks($node,'dictionaryentry');
+			// Delete nodes of type 'nativespeakeraudio'
+			_nativePortalTidySpeakerAudioFiles($node->nid);
 		}
 	}
 }
@@ -213,6 +215,22 @@ EOT;
 	}
 
 	return($returnNidArray);
+}
+
+
+/*
+ * _nativePortalTidySpeakerAudioFiles($nid)
+ * Removes 'nativespeakeraudio' type nodes that are dependent on nid passed.
+ * $nid : INT of nid you wish to scan for removal of children.
+ */
+function _nativePortalTidySpeakerAudioFiles($nid) {
+	$findRecordingsQuery = "SELECT nid FROM {content_type_nativespeakeraudio} WHERE {field_parentdictionaryentry_nid} = '%d'";
+	$childRecordingsResult = db_query($findRecordingsQuery, $nid);
+	while($curChildRecordings = db_fetch_object($childRecordingsResult)) {
+		node_delete($curChildRecordings->nid);
+		watchdog('native_dictionary',t('Removed dependent audio file NID='.$curChildRecordings->nid));
+	}
+	return(TRUE);
 }
 
 ?>
