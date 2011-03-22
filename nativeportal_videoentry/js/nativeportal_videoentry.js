@@ -354,14 +354,3 @@ function nativePortalDeleteCaptionRow(nid,capKey) {
 	}
 }
 
-
-function nativePortalCyclePlayerForRefresh(position) {
-
-	// document.getElementById('jwplayer-1').sendEvent('STOP', '/~jsanford/passadrupal/sites/default/files/Circus.f4v');
-	// player = document.getObjectById('jwplayer-1');
-	// player.load('/~jsanford/passadrupal/sites/default/files/Circus.f4v');
-	// ,
-	// 	'captions.file': '/~jsanford/passadrupal/?q=video/captions/109751.srt',
-	// });
-	nativePortalJumpToTimeInVideo(position);
-}
