@@ -153,24 +153,26 @@ function _nativePortalCaptionNodeAutocomplete($string) {
 function _nativePortalManagedLinkedWords() {
 
 	$dictionaryNIDToLink='';
+
+	$passedVideoNodeString=trim(arg(2));
+	$operationToPerform=trim(arg(3));
+	$phraseToLinkInCaption=trim(arg(4));
+	$passedTargetNodeString=trim(arg(5));
+
 	// We have to work a bit to get the NID out of arg(5).
 	// First, they most likely used the custom format we defined. Let's make sure this matches.
 	// $customFormatMask='/^[a-zA-Z \'-0-9]+ \[([0-9]+)\]$/'; OLD Value too specific I think
 	$customFormatMask='/^.* \[([0-9]+)\]$/';
-	// Also, they may have sent ONLY the NID. This would be rare but could happen.
-	$onlyIntegersMask='/^([0-9]+$)/';
 
 	// Check for each. 
-	if (preg_match($customFormatMask, trim(arg(5)), $nidMatchArray)) {
+	if (preg_match($customFormatMask, $passedTargetNodeString, $nidMatchArray)) {
 		$dictionaryNIDToLink=$nidMatchArray[1];
-		watchdog('native_video',"NID $dictionaryNIDToLink ".t('matched through custom format mask.'));
-	} elseif (preg_match($onlyIntegersMask, trim(arg(5)), $nidMatchArray)) {
-		$dictionaryNIDToLink=$nidMatchArray[1];
-		watchdog('native_video',"NID $dictionaryNIDToLink ".t('matched through integer mask.'));
+	} elseif ((int) $passedTargetNodeString > 0) {
+		$dictionaryNIDToLink=(int) $passedTargetNodeString;
 	} else {
 		// Make sure target node is not null, and is a dictionary entry.
-		if(trim(arg(5))!='') {
-			$testNodeTitleMatch=node_load(array('title' => trim(arg(5))));
+		if($passedTargetNodeString != '') {
+			$testNodeTitleMatch=node_load(array('title' => $passedTargetNodeString));
 			if ($testNodeTitleMatch->type=='dictionaryentry') {
 				$dictionaryNIDToLink=$testNodeTitleMatch->nid;
 			} else {
@@ -189,7 +191,7 @@ function _nativePortalManagedLinkedWords() {
 	}
 
 	// Check if parent nid is type video.
-	$videoNodeToUpdate=node_load(arg(2));
+	$videoNodeToUpdate=node_load( $passedVideoNodeString );
 	if ($videoNodeToUpdate->type != 'video') {
 		print $watchDogMessage=t('Invalid Video Node Specified');
 		$watchDogStringToReturn=t('Caption Not Modified')." : $watchDogMessage";
@@ -209,11 +211,8 @@ function _nativePortalManagedLinkedWords() {
 		}
 	}
 
-	$operationToPerform=arg(3);
-	$phraseToLinkInCaption=arg(4);
 	$tripletStringForLog="[{$videoNodeToUpdate->nid}|$phraseToLinkInCaption|$dictionaryNIDToLink]";
 	$watchDogStringToReturn='';
-
 
 	// We need to loop through and check 3 things:
 	// 1) Find a potential existing caption node index. This is needed for both operations (in 'new' it makes sure that there is no index with this already.
@@ -237,7 +236,6 @@ function _nativePortalManagedLinkedWords() {
 			$viablePlacementFound=1;
 		}
 	}
-
 
 	// If we're not adding, we don't need to see if this link is a viable placement:
 	if ($operationToPerform!='add' || $viablePlacementFound==1) {
