@@ -1,6 +1,6 @@
 .captionElementAddContainer {
 width:550px;
-height:150px;
+height:175px;
 border: 1px solid #DFDFDF;
 margin-left:auto;
 margin-right:auto;
@@ -146,7 +146,7 @@ margin:10px;
  * Add Caption Line Form
  */
 #edit-newEnglishPhrase-wrapper {
-	margin:0 0 0 0;
+	margin:5px 0px;
 	padding:0 0 0 0;
 	height:30px;
 }
@@ -165,7 +165,7 @@ margin:10px;
 }
 
 #edit-newNativePhrase-wrapper {
-	margin:0 0 0 0;
+	margin:5px 0px;
 	padding:0 0 0 0;
 	height:30px;
 }
@@ -185,32 +185,39 @@ margin:10px;
 }
 
 #edit-newStartTime-wrapper {
-	margin:0 0 0 0;
+	margin:5px 0px;
 	padding:0 0 0 0;
 	height:30px;
-	width:190px;
+	width:200px;
 	float:left;
 }
 
 #edit-newStartTime-wrapper label {
 	margin:0 0 0 0;
 	padding:0 0 0 0;
-	width:90px;
+	width:100px;
 	float:left;
 }
 
 #edit-newEndTime-wrapper {
-	margin:0 0 0 0;
+	margin:5px 0px;
 	padding:0 0 0 0;
 	height:30px;
-	width:190px;
+	width:200px;
 	float:left;
 }
 
 #edit-newEndTime-wrapper label {
 	margin:0 0 0 0;
 	padding:0 0 0 0;
-	width:90px;
+	width:100px;
+	float:left;
+}
+
+#edit-addNewCaptionButton {
+	margin:5px 0px;
+	padding:0 0 0 0;
+	width:120px;
 	float:left;
 }
 

@@ -1421,7 +1421,7 @@ function _nativePortalGetAddCaptionLineFormElement(&$form,$nid) {
 
 	$form['manageCaptionsTabset']['manageCaptionEntries']['captionElementAddContainer']['addNewCaptionButton'] = array(
 		'#type' => 'button',
-		'#value' => t('Add Caption Element'), 
+		'#value' => t('Add Caption Line'),
 		'#attributes' => array('onclick' => 'nativePortalAddCaptionLineToDatabase('.$nid.'); return false;'),
 		'#weight' => 5,
 	);
