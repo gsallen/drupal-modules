@@ -37,7 +37,7 @@ function nativeportal_nanogong_menu() {
 		'title' => t('Audio Recording'),
 		'access arguments'=>array('administer nanogong'),
 		'page callback'=>'drupal_get_form',
-		'page arguments'=>array('nanogong_settings'),
+		'page arguments'=>array('nativeportal_nanogong_settings'),
 		);
 	return $items;
 }
