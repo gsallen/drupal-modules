@@ -1046,7 +1046,7 @@ function _nativePortalGetSubsetsOfCaption($captionString,$maxWordLength) {
 	$captionString=preg_replace( '/\W+$/', '', $captionString );
 
 	// Split it into word values.
-	$arrayOfWordsInString=split(" ",$captionString);
+	$arrayOfWordsInString=preg_split('/\s+/',$captionString);
 	
 	// Get number of words we're workign with
 	$numWordsInString=count($arrayOfWordsInString);
