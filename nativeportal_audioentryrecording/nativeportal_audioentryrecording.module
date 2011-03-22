@@ -57,8 +57,7 @@ function _nativePortalSaveNanoGongFile() {
 	if ($_FILES['file']['error']==0 && $_FILES['file']['size']!='0') {
 
 		// Copy file to drupal structure location. ($_FILES['tmp_name'])
-		$nodeTitleToUse='native-recording_'.arg(2).'_'.$user->uid.'_'.strtolower(str_replace(' ','-',trim(arg(3))));
-		$fileNameToUse=$nodeTitleToUse.'_'._nativePortalGenerateHashForFilename().'_'.$_FILES['file']['name'];
+		$fileNameToUse='native-recording_'.arg(2).'_'.$user->uid.'_'.strtolower(str_replace(' ','-',trim(arg(3)))).'_'._nativePortalGenerateHashForFilename().'_'.$_FILES['file']['name'];
 
 		// Below is the REAL Line to define the path, but homedir serving sometimes is funky. Uncomment on production.
 		// $baseFilePathToSaveFile=real_path('.').file_directory_path();
@@ -94,7 +93,7 @@ function _nativePortalSaveNanoGongFile() {
 		$nodeToInsert = new StdClass();
 		$nodeToInsert->type = 'nativespeakeraudio';
 		$nodeToInsert->body = '';
-		$nodeToInsert->title = $nodeTitleToUse;
+		$nodeToInsert->title = $nodeToVerify->title;
 
 		// CCK Filefield For field_nativespeechaudiofile
 		$nodeToInsert->field_nativespeechaudiofile = array(
