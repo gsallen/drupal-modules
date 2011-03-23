@@ -1145,8 +1145,8 @@ function _nativePortalGetVideoPlayerHTML($node,$startAtTime='') {
 	// Have we found some caption data?
 	if (_nativePortalCaptionsExist($node->field_captionsdata)) {
 			// TODO: Hacked captions plugin for now. This can go away someday as release uses link clicking.
-			$flash_vars['plugins']='http://etcdev.hil.unb.ca/~jsanford/passadrupal/sites/default/modules/jwplayermodule/captions.swf';
-			$flash_vars['captions.file']='http://etcdev.hil.unb.ca'.base_path().'?q=video/captions/'.$node->nid.'.srt';
+			$flash_vars['plugins']=base_path().drupal_get_path('module', 'jwplayermodule').'/captions.swf';
+			$flash_vars['captions.file']=base_path().'?q=video/captions/'.$node->nid.'.srt';
 			$flash_vars['captions.enabled']=true;
 			$flash_vars['captions.back']=false;
 	}
