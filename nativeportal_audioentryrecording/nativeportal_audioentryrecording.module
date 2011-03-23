@@ -59,9 +59,7 @@ function _nativePortalSaveNanoGongFile() {
 		// Copy file to drupal structure location. ($_FILES['tmp_name'])
 		$fileNameToUse='native-recording_'.arg(2).'_'.$user->uid.'_'.strtolower(str_replace(' ','-',trim(arg(3)))).'_'._nativePortalGenerateHashForFilename().'_'.$_FILES['file']['name'];
 
-		// Below is the REAL Line to define the path, but homedir serving sometimes is funky. Uncomment on production.
-		// $baseFilePathToSaveFile=real_path('.').file_directory_path();
-		$baseFilePathToSaveFile='/home/jsanford/public_html/passa2/sites/default/files';
+		$baseFilePathToSaveFile=$_SERVER['DOCUMENT_ROOT'].base_path().file_directory_path();
 
 		// Sanitize filename.
 		$fileNameToUse=preg_replace('/[^a-z0-9\._-]+/i','',$fileNameToUse);
