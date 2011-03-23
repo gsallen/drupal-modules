@@ -143,6 +143,13 @@ function nativeportal_dictionaryentry_nodeapi($node, $op, $teaser, $page) {
 			_nativePortalTidySpeakerAudioFiles($node->nid);
 		}
 	}
+
+	// Set menu item to Dictionary on these nodes.
+	if ($op == 'view' && $node->type=='dictionaryentry') {
+		$path = drupal_get_normal_path('dictionary');
+		menu_set_active_item($path);
+	}
+
 }
 
 

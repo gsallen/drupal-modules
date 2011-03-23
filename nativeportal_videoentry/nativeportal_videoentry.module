@@ -1516,4 +1516,18 @@ function _nativePortalTidyCaptionLinks(&$nodeObject,$deleteType) {
 }
 
 
+/*
+ * nativeportal_videoentry_nodeapi($node, $op, $teaser, $page)
+ * Implementation of hook_nodeapi()
+ */
+function nativeportal_videoentry_nodeapi($node, $op, $teaser, $page) {
+
+	// Set menu item to Videos on these nodes.
+	if ($op == 'view' && $node->type=='video') {
+		$path = drupal_get_normal_path('videos');
+		menu_set_active_item($path);
+	}
+
+}
+
 ?>
