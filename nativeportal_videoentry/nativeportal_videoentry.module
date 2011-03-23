@@ -438,7 +438,7 @@ function _nativePortal_video_captions_access() {
 	
 	$nodeToCheck=node_load(arg(1) );
 
-	if ($nodeToCheck->type == 'video' && user_access('edit content')) {
+	if ($nodeToCheck->type == 'video' && user_access('edit field_captionslinks') && user_access('edit field_captionsdata')) {
 		return TRUE;
 	}
 

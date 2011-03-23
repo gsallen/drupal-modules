@@ -222,7 +222,7 @@ function _nativePortalGetNanogongWidgetForRecording($node) {
  */
 function _nativePortalAudioAccessRules() {
 	$nodeToCheck=node_load(arg(1));
-	if ($nodeToCheck->type == 'dictionaryentry' && user_access('edit content')) {
+	if ($nodeToCheck->type == 'dictionaryentry' && user_access('create nativespeakeraudio content')) {
 		return TRUE;
 	}
 	return FALSE;
