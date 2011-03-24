@@ -39,8 +39,8 @@ function timeMonitor(obj) {
 		// TODO: need to do some modulus stuff or something to make sure this
 		// only fires once per second.
 		time = obj.position;
-		$('.newStartTime').val(nativePortalFormatSubripTimeFromSeconds(Math.floor(time)));
-		$('.newEndTime').val(nativePortalFormatSubripTimeFromSeconds(Math.floor(time)+5));
+		$('.newStartTime').val(nativePortalFormatSubripTimeFromSeconds(parseFloat(time).toFixed(2)));
+		$('.newEndTime').val(nativePortalFormatSubripTimeFromSeconds(parseFloat(time).toFixed(2)));
 	}
 }
 
@@ -152,10 +152,8 @@ function nativePortalClearAndRepopulateCaptionsDataTable(nid) {
 
 function nativePortalFormatSubripTimeFromSeconds(secondsval) {
 	var t = new Date(1970,0,1);
-	t.setSeconds(secondsval);
-	var s = t.toTimeString().substr(0,8);
-	if(secondsval > 86399)
-		s = Math.floor((t - Date.parse("1/1/70")) / 3600000) + s.substr(2);
+	t.setSeconds(parseInt(secondsval));
+	var s = t.toTimeString().substr(0,8) + String(secondsval).substr(-3);
 	return s;
 }
 

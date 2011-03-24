@@ -404,16 +404,16 @@ function _nativePortalAddCaptionToVideoNode() {
 function _nativePortalValidateCaptionInsertTime($timeStringValue,$lengthOfVideo) {
 
 	// is_int() here not appropriate? 
-	if ((int) $timeStringValue > 0) {
-		$seconds=$timeStringValue;
+	if (is_numeric($timeStringValue)) {
+		$seconds=(float) $timeStringValue;
 	} else {
 		// Ok, not seconds value. May be passed as 00:00:XX
-		if (preg_match('/\d{2}\:\d{2}\:\d{2}/', $timeStringValue)) {
+		if (preg_match('/\d{2}\:\d{2}\:\d{2}\.\d{2}/', $timeStringValue)) {
 			list($h, $m, $s) = explode (":", $timeStringValue);
 			$seconds = 0;
 			$seconds += (intval($h) * 3600);
 			$seconds += (intval($m) * 60);
-			$seconds += (intval($s));
+			$seconds += (floatval($s));
 		} else {
 			// Not a time value that we understand.
 			return(FALSE);
@@ -707,8 +707,8 @@ function _nativePortalGetVideoCaptionTable ($generatingNID,$captionArray,$classO
 		if (_nativePortalCaptionsExist($captionArray)>0) {
 			foreach ($captionArray as $curCapKey => $curCapLine) {
 
-				$startTimeMaskFromSeconds=_nativePortalFormatSubripTimeFromSeconds($curCapLine['start_time'],0);
-				$endTimeMaskFromSeconds=_nativePortalFormatSubripTimeFromSeconds($curCapLine['end_time'],0);
+				$startTimeMaskFromSeconds=_nativePortalFormatSubripTimeFromSeconds($curCapLine['start_time'],1);
+				$endTimeMaskFromSeconds=_nativePortalFormatSubripTimeFromSeconds($curCapLine['end_time'],1);
 
 				$captionsTableDataRows[]=array(
 							'data' =>	array (
@@ -959,9 +959,13 @@ EOT;
  */
 function _nativePortalFormatSubripTimeFromSeconds($secondsval,$useMilliSeconds=1) {
 	$returnTimeString='';
-	$dateMask="H:i:s";
-	if ($useMilliSeconds==1) { $dateMask.=',u'; }
-	$returnTimeString=gmdate($dateMask, $secondsval);
+	$numHours=floor($secondsval/3600);
+	$numMinutes=floor(($secondsval-$numHours*3600)/60);
+	$remainderSeconds=$secondsval-$numHours*3600-$numMinutes*60;
+	$returnTimeString=sprintf("%02d:%02d:%02d", $numHours, $numMinutes, $remainderSeconds);
+	if ($useMilliSeconds=1) {
+		$returnTimeString.=substr(sprintf("%0.2f", $remainderSeconds),-3);
+	}
 	return($returnTimeString);
 }
 
